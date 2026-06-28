@@ -5,9 +5,9 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-$repo = Split-Path -Parent $MyInvocation.MyCommand.Path
-if (-not (Test-Path (Join-Path $repo "petieee2k.asm"))) {
-    $repo = (Get-Location).ProviderPath
+$repo = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
+if (-not (Test-Path (Join-Path $repo "src\petmenu2k.asm"))) {
+    throw "Cannot find repository root from script path."
 }
 
 function Resolve-Cbmasm {
@@ -37,8 +37,10 @@ function Build-Rom {
     )
 
     $assemblerPath = Resolve-Cbmasm $Assembler
-    $source = Join-Path $repo $SourceName
-    $output = Join-Path $repo $OutputName
+    $source = Join-Path $repo "src\$SourceName"
+    $outputDir = Join-Path $repo "roms"
+    $output = Join-Path $outputDir $OutputName
+    New-Item -ItemType Directory -Path $outputDir -Force | Out-Null
 
     & $assemblerPath -output plain $source $output
     if ($LASTEXITCODE -ne 0) {
@@ -56,5 +58,4 @@ function Build-Rom {
     Get-Item $items | Select-Object FullName, Length
 }
 
-Build-Rom "petieee2k.asm" "petieee2k.bin"
-Build-Rom "petromid2k.asm" "petromid2k.bin"
+Build-Rom "petmenu2k.asm" "petmenu2k.bin"

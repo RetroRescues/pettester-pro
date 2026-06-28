@@ -10,33 +10,43 @@ so a PET can choose between several EDIT-socket diagnostic ROM images at boot.
 
 ## Release ROMs
 
-The current publish-facing ROM images are:
+The current precompiled 50 Hz ROM images are in `roms/`:
 
 | File | Purpose |
 | --- | --- |
-| `petmenu2k.bin` | Slot 0 boot menu. Checks One ROM non-volatile boot preference, allows key/timer menu selection, then boots the selected slot. |
-| `pettester.bin` | RetroRescues V6 PETTESTER build. Adds startup beep, simple 40/80 column VRAM detection, CRT warmup delay, and compact IEEE-488 self-test output. |
-| `petieee2k.bin` | Standalone IEEE-488/GPIB diagnostic ROM with clearer per-line status display. |
-| `petromid2k.bin` | Standalone ROM CRC16 identifier. Computes CRCs for CPU-visible PET ROM ranges and names known matches from common PET ROM sets. |
+| `roms/petmenu2k.bin` | Slot 0 boot menu. Checks One ROM non-volatile boot preference, allows key/timer menu selection, then boots the selected slot. |
+| `roms/pettester.bin` | RetroRescues V6 PETTESTER build. Adds startup beep, simple 40/80 column VRAM detection, CRT warmup delay, and compact IEEE-488 self-test output. |
+| `roms/petieee2k.bin` | Standalone IEEE-488/GPIB diagnostic ROM with clearer per-line status display. |
+| `roms/petromid2k.bin` | Standalone ROM CRC16 identifier. Computes CRCs for CPU-visible PET ROM ranges and names known matches from common PET ROM sets. |
 
-The matching sources are `petmenu2k.asm`, `pettester.asm`, `petieee2k.asm`, and
-`petromid2k.asm`. Most implementation notes are in the ASM files. The IEEE test
-translation notes are in `IEEE_TEST_TRANSLATION.md`.
+The matching sources are in `src/`. Most implementation notes are in the ASM
+files. The IEEE test translation notes are in `docs/IEEE_TEST_TRANSLATION.md`.
+
+## TL;DR: One ROM Studio
+
+1. Create a working folder, for example `C:\pet`.
+2. Copy the precompiled ROMs from `roms/` into that folder.
+3. Copy your chosen normal PET EDIT ROM into the same folder and name it
+   `edit.bin`.
+4. Copy `config/petmenu2k-onerom-hostcontrol.json` into the same folder.
+5. Check the file paths inside the JSON. By default they expect `c:/pet/*.bin`.
+6. In One ROM Studio, use **Create** and load that ROM config JSON.
 
 ## One ROM layout
 
-`petmenu2k-onerom-hostcontrol.json` is the One ROM Studio / web app config used
-to build the full One ROM image with USB and host-control plugins enabled.
+`config/petmenu2k-onerom-hostcontrol.json` is the One ROM Studio / web app
+config used to build the full One ROM image with USB and host-control plugins
+enabled.
 
 Expected flash layout:
 
 | Slot | Image |
 | --- | --- |
-| 0 | `petmenu2k.bin` |
+| 0 | `roms/petmenu2k.bin` |
 | 1 | normal PET EDIT ROM, not included here |
-| 2 | `pettester.bin` |
-| 3 | `petieee2k.bin` |
-| 4 | `petromid2k.bin` |
+| 2 | `roms/pettester.bin` |
+| 3 | `roms/petieee2k.bin` |
+| 4 | `roms/petromid2k.bin` |
 
 The JSON currently references `c:/pet/*.bin`. Put the ROM files there, or edit
 the paths before compiling the One ROM image.
@@ -71,9 +81,9 @@ or set `CBMASM` to the executable path.
 PowerShell:
 
 ```powershell
-.\build-petmenu2k.ps1
-.\build-pettester.ps1
-.\build-split-tests.ps1
+.\scripts\build-petmenu2k.ps1
+.\scripts\build-pettester.ps1
+.\scripts\build-split-tests.ps1
 ```
 
 Make:

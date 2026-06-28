@@ -1,13 +1,16 @@
 AS ?= cbmasm
 
-ROMS = petmenu2k.bin pettester.bin petieee2k.bin petromid2k.bin
+ROMS = roms/petmenu2k.bin roms/pettester.bin roms/petieee2k.bin roms/petromid2k.bin
 
 .PHONY: all clean
 
 all: $(ROMS)
 
-%.bin: %.asm
+roms/%.bin: src/%.asm | roms
 	$(AS) -output plain $< $@
+
+roms:
+	mkdir -p roms
 
 clean:
 	rm -f $(ROMS)
