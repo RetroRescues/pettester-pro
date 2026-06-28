@@ -1,0 +1,2151 @@
+0000 |                | 	; pettester.asm
+0000 |                | 	;
+0000 |                | 
+0000 |                | 	; pettester - A program to replace the editor ROM of a Commodore PET computer
+0000 |                | 	;           - with the purpose of testing out key functionality of the machine.
+0000 |                | 	;
+0000 |                | 	; Updated 2026  RetroRescues.
+0000 |                | 	; Copyright (C) 2023  Andreas Signer.
+0000 |                | 	; Copyright (C) 2019  David E. Roberts.
+0000 |                | 	; 
+0000 |                | 	; This program is free software: you can redistribute it and/or modify
+0000 |                | 	; it under the terms of the GNU General Public License as published by
+0000 |                | 	; the Free Software Foundation, either version 3 of the License, or
+0000 |                | 	; (at your option) any later version.
+0000 |                | 	;
+0000 |                | 	; This program is distributed in the hope that it will be useful,
+0000 |                | 	; but WITHOUT ANY WARRANTY; without even the implied warranty of
+0000 |                | 	; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+0000 |                | 	; GNU General Public License for more details.
+0000 |                | 	;
+0000 |                | 	; You should have received a copy of the GNU General Public License
+0000 |                | 	; along with this program.  If not, see <http://www.gnu.org/licenses/>.
+0000 |                |     
+0000 |                | 
+0000 |                | 
+0000 |                | SET_POS	.macro y,x
+0000 |                | 	lda	#<(vdu0+y*40+x)		; VDU screen low address.
+0000 |                | 	sta	VDULL		; "   "   "   "   "   "
+0000 |                | 	lda	#>(vdu0+y*40+x)		; VDU screen low address.
+0000 |                | 	sta	VDUHH		; "   "   "   "   "   "
+0000 |                | 	.endm
+0000 |                | 
+0000 |                | 
+0000 |                | EDITROM	.equ	$E000
+0000 |                | 	.org	EDITROM
+e000 |                | 
+e000 |                | 	; This is the entry point into the initialisation portion
+e000 |                | 	; of the EDIT ROM. It is called from the kernel ROM ($F000)
+e000 |                | 	; after a small amount of processing (i.e. maskable interrupts
+e000 |                | 	; have been inhibited and the decimal arithmetic flag cleared).
+e000 |                | 	;
+e000 |                | 	; This entry point is CALLED by the kernel ROM - but the 
+e000 |                | 	; page 0 RAM may not be working (so the return address may not 
+e000 |                | 	; actually work). We have no plans of returning anyhow...
+e000 |                | 	;
+e000 |                | 	; Bypass any fixed constants stored in the ROM (e.g. the
+e000 |                | 	; initialisation values for the CRT Controller).
+e000 |                | 	;  
+e000 |                | 	; This is the EDIT ROM entry point for kernal-4 (at address $E000).
+e000 |                | 	; =================================================================
+e000 |                | 	;
+e000 | 4c 3d e0       | 	jmp	start
+e003 |                | 	;
+e003 |                | 	.byte	"pettester RetroRescue Update."
+e02b |                |     
+e02b |                | 	; Initialisation table for the CRT Controller. One byte for 
+e02b |                | 	; each register (in numerical order starting at register 0).
+e02b |                | 	;
+e02b |                | 
+e02b |                | 	; Table obtained from http://cbm-hackers.2304266.n4.nabble.com/PET-50Hz-editor-ROMS-td4658493.html
+e02b |                | 	; ================================================================================================
+e02b |                | 	;
+e02b |                | 	;           PET/CBM PET/CBM PET/CBM  8296D   NTSC     PAL 
+e02b |                | 	;            60 Hz   50 Hz   50 Hz   50 HZ   60 Hz   50 Hz 
+e02b |                | 	;
+e02b |                | 	; Business 
+e02b |                | 	; ========
+e02b |                | 	;
+e02b |                | 	; reg.  0     49      49      50      48      63      63 
+e02b |                | 	; reg.  1     40      40      40      40      40      40 
+e02b |                | 	; reg.  2     41      41      40      44      49      50 
+e02b |                | 	; reg.  3     15      15       8       8      15       8 
+e02b |                | 	; reg.  4     32      39      38      32      31      32 
+e02b |                | 	; reg.  5      3       0       2       9       7      16 
+e02b |                | 	; reg.  6     25      25      25      25      25      25 
+e02b |                | 	; reg.  7     29      32      32      29      29      29 
+e02b |                | 	; reg.  8      0       0       0       0       0       0 
+e02b |                | 	; reg.  9      9       9       9       9       7       8 
+e02b |                | 	; reg. 10      0       0       0       0       0       0 
+e02b |                | 	; reg. 11      0       0       0       0       0       0 
+e02b |                | 	; reg. 12     16      16      16      16      16      16 
+e02b |                | 	; reg. 13      0       0       0       0       0       0 
+e02b |                | 	; reg. 14      0       0       0       0       0       0 
+e02b |                | 	; reg. 15      0       0       0       0       0       0 
+e02b |                | 	; reg. 16      0       0       0       0       0       0 
+e02b |                | 	; reg. 17      0       0       0       0       0       0 
+e02b |                | 	;
+e02b |                | 	; Graphic 
+e02b |                | 	; =======
+e02b |                | 	;
+e02b |                | 	; reg.  0     49      49      50      48      63      63 
+e02b |                | 	; reg.  1     40      40      40      40      40      40 
+e02b |                | 	; reg.  2     41      41      40      44      49      50 
+e02b |                | 	; reg.  3     15      15       8       8      15       8 
+e02b |                | 	; reg.  4     40      49      48      41      31      36 
+e02b |                | 	; reg.  5      5       0       0       3       7      17 
+e02b |                | 	; reg.  6     25      25      25      25      25      25 
+e02b |                | 	; reg.  7     33      37      37      34      29      32 
+e02b |                | 	; reg.  8      0       0       0       0       0       0 
+e02b |                | 	; reg.  9      7       7       7       7       7       7 
+e02b |                | 	; reg. 10      0       0       0       0       0       0 
+e02b |                | 	; reg. 11      0       0       0       0       0       0 
+e02b |                | 	; reg. 12     16      16      16      16      16      16 
+e02b |                | 	; reg. 13      0       0       0       0       0       0 
+e02b |                | 	; reg. 14      0       0       0       0       0       0 
+e02b |                | 	; reg. 15      0       0       0       0       0       0 
+e02b |                | 	; reg. 16      0       0       0       0       0       0 
+e02b |                | 	; reg. 17      0       0       0       0       0       0 
+e02b |                | 
+e02b |                | CRTC_INIT:
+e02b |                | 
+e02b |                | 	; PET/CBM 60Hz Business.
+e02b |                | 	; ======================
+e02b |                | 	;
+e02b | 31             | 	.byte	49		; Register 0.
+e02c | 28             | 	.byte	40		; Register 1.
+e02d | 29             | 	.byte	41		; Register 2.
+e02e | 0f             | 	.byte	15		; Register 3.
+e02f | 20             | 	.byte	32		; Register 4.
+e030 | 03             | 	.byte 	3		; Register 5.
+e031 | 19             | 	.byte	25		; Register 6.
+e032 | 1d             | 	.byte	29		; Register 7.
+e033 | 00             | 	.byte 	0		; Register 8.
+e034 | 09             | 	.byte 	9		; Register 9.
+e035 | 00             | 	.byte 	0		; Register 10.
+e036 | 00             | 	.byte 	0		; Register 11.
+e037 | 10             | 	.byte	16		; Register 12.
+e038 | 00             | 	.byte 	0		; Register 13.
+e039 | 00             | 	.byte 	0		; Register 14.
+e03a | 00             | 	.byte 	0		; Register 15.
+e03b | 00             | 	.byte 	0		; Register 16.
+e03c | 00             | 	.byte 	0		; Register 17.
+e03d |                | 
+e03d |                | 	; ******************
+e03d |                | 	; ***            ***
+e03d |                | 	; ***  EQUATES.  ***
+e03d |                | 	; ***            ***
+e03d |                | 	; ******************
+e03d |                | 
+e03d |                | 	; DELAY parameters. 
+e03d |                | 	; =================
+e03d |                | 
+e03d |                | dlyx	.equ	$00		; Inner delay counter.
+e03d |                | dlyy	.equ	$00		; Outer delay counter.
+e03d |                | 
+e03d |                | 	; VDU memory.
+e03d |                | 	; ===========
+e03d |                | 
+e03d |                | vdu0	.equ	$8000		; Screen block 0.
+e03d |                | vdu1	.equ	$8100		; Screen block 1.
+e03d |                | vdu2	.equ	$8200		; Screen block 2.
+e03d |                | vdu3	.equ	$8300		; Screen block 3.
+e03d |                | vdu4	.equ	$8400		; Screen block 4.
+e03d |                | vdu5	.equ	$8500		; Screen block 5.
+e03d |                | vdu6	.equ	$8600		; Screen block 6.
+e03d |                | vdu7	.equ	$8700		; Screen block 7.
+e03d |                | 
+e03d |                | 	; Low RAM memory.
+e03d |                | 	; ===============
+e03d |                | 
+e03d |                | mem0	.equ	$0000		; Memory block 0.
+e03d |                | mem1	.equ	$0100		; Memory block 1.
+e03d |                | 
+e03d |                | 	; PETSCII character codes.
+e03d |                | 	; ========================
+e03d |                | 
+e03d |                | gud1	.equ	$07		; PETSCII 'G' character code.
+e03d |                | bad1	.equ	$02		; PETSCII 'B' character code.
+e03d |                | spc	.equ	$20		; PETSCII ' ' character code.
+e03d |                | dot	.equ	$2E		; PETSCII '.' character code.
+e03d |                | 
+e03d |                | PETSCII_EQ	.equ	$3D	; PETSCII '='.
+e03d |                | PETSCII_COLON	.equ	$3A	; PETSCII ':'.
+e03d |                | 
+e03d |                | 	; Memory test values.
+e03d |                | 	; ===================
+e03d |                | 
+e03d |                | tst55	.equ	$55		; Memory test value 1.		
+e03d |                | tstAA	.equ	$AA		; Memory test value 2.
+e03d |                | 
+e03d |                | 	; CRT Controller addresses.
+e03d |                | 	; =========================
+e03d |                | 
+e03d |                | crtca	.equ	$E880		; CRT Controller address register.
+e03d |                | crtcd	.equ	$E881		; CRT Controller data    register.
+e03d |                | 
+e03d |                | 	; PIA addresses.
+e03d |                | 	; ==============
+e03d |                | 	
+e03d |                | pia1	.equ	$E810
+e03d |                | pia2	.equ	$E820
+e03d |                | 
+e03d |                | 	; ***************************************************
+e03d |                | 	; ***                                             ***
+e03d |                | 	; ***  THIS IS THE REAL ENTRY POINT OF THE TEST.  ***
+e03d |                | 	; ***                                             ***
+e03d |                | 	; ***************************************************
+e03d |                | 
+e03d |                | start:
+e03d |                | 
+e03d |                | 	; Initialise the CRTC (if it exists).
+e03d |                | 	; ===================================
+e03d |                |     
+e03d | a2 00          | 	ldx	#0		; Start with CRT Controller register 0.
+e03f |                | more_crtc:
+e03f | bd 2b e0       | 	lda	CRTC_INIT,x	; Pick up the initialisation value for this register.
+e042 | 8e 80 e8       | 	stx	crtca		; Tell the CRT Controller which register we are going to initialise.
+e045 | 8d 81 e8       | 	sta	crtcd		; Initialisation value for the register just defined.
+e048 | e8             | 	inx			; Index the next CRT Controller register.
+e049 | e0 12          | 	cpx	#$12		; Have we finished initialising the CRT Controller?
+e04b | d0 f2          | 	bne	more_crtc	; If not, skip back and initialise more registers.
+e04d |                | 	
+e04d |                | 	; The CRT Controller should be now initialised and displaying random rubbish 
+e04d |                | 	; on the screen! Of course, the CRT itself may need time to 'warm up' before
+e04d |                | 	; this rubbish can be seen!
+e04d |                | 
+e04d |                | 	; *************************************************************************************
+e04d |                | 	; ***                                                                               ***
+e04d |                | 	; ***  Write known contents to the screen (all of the characters from $00 to $FF).  ***
+e04d |                | 	; ***                                                                               ***
+e04d |                | 	; *************************************************************************************
+e04d |                | 	
+e04d |                | TEST_VDU:
+e04d |                | 
+e04d | 4c 6d e7       | 	jmp	WARMUP_BOOT	; One-time VDU size report and CRT warmup delay.
+e050 |                | more_vduW:
+e050 | 8a             | 	txa			; Pick up the index (which is also the character to display).
+e051 | 9d 00 80       | 	sta	vdu0,x		; Screen block 0.
+e054 | 9d 00 81       | 	sta	vdu1,x		; Screen block 1.
+e057 | 9d 00 82       | 	sta	vdu2,x		; Screen block 2.
+e05a | 9d 00 83       | 	sta	vdu3,x		; Screen block 3.
+e05d | 9d 00 84       | 	sta	vdu4,x		; Screen block 4.
+e060 | 9d 00 85       | 	sta	vdu5,x		; Screen block 5.
+e063 | 9d 00 86       | 	sta	vdu6,x		; Screen block 6.
+e066 | 9d 00 87       | 	sta	vdu7,x		; Screen block 7.
+e069 | e8             | 	inx			; Move on to the next location in the screen memory.
+e06a | d0 e4          | 	bne	more_vduW	; Keep looping until we have finished.
+e06c |                | 	
+e06c |                | 	; Note that this assumes an 80 column VDU. If the PET is 40 columns - this shouldn't matter.
+e06c |                | 	; (it will just overwrite what has been written previously).
+e06c |                | 	
+e06c |                | 	; Check that the first 1K of screen memory has taken the value that has been written.
+e06c |                | 	; If not - keep looping. If it has, perform a delay and move on to the next test.
+e06c |                | 	
+e06c | a2 00          | 	ldx	#0		; Starting index into the blocks of screen memory & the character itself.
+e06e |                | more_vduR:
+e06e | 8a             | 	txa			; Pick up the index (which is also the character to check for).
+e06f | dd 00 80       | 	cmp	vdu0,x		; Check screen block 0.
+e072 | d0 d9          | 	bne	TEST_VDU	; If not the same, keep looping.
+e074 | dd 00 81       | 	cmp	vdu1,x		; Check screen block 1.
+e077 | d0 d4          | 	bne	TEST_VDU	; If not the same, keep looping.
+e079 | dd 00 82       | 	cmp	vdu2,x		; Check screen block 2.
+e07c | d0 cf          | 	bne	TEST_VDU	; If not the same, keep looping.
+e07e | dd 00 83       | 	cmp	vdu3,x		; Check screen block 3.
+e081 | d0 ca          | 	bne	TEST_VDU	; If not the same, keep looping.
+e083 | e8             | 	inx			; Move on to the next location in the screen memory.
+e084 | d0 e8          | 	bne	more_vduR	; Keep looping until we have finished.
+e086 |                | 	
+e086 |                | 	; The first 1K of screen memory appears to be OK. If we have a 2K screen (80 column PET)
+e086 |                | 	; then there is the possibility that the second 1K could be faulty. However, because the
+e086 |                | 	; 80 column PET interleaves the two banks of 1K of VDU memory - this should be pretty
+e086 |                | 	; apparent. Furthermore, I would expect the 40 column VDU RAM check to catch it!
+e086 |                | 
+e086 |                | 	; *************************************************************************************************
+e086 |                | 	; ***                                                                                           ***
+e086 |                | 	; ***  Perform a 'long' delay to permit the human to view the results displayed on the screen.  ***
+e086 |                | 	; ***                                                                                           ***
+e086 |                | 	; *************************************************************************************************
+e086 |                | 
+e086 | a2 00          | 	ldx	#dlyx		; Inner delay count.
+e088 | a0 00          | 	ldy	#dlyy		; Outer delay count.
+e08a |                | 		
+e08a |                | delayloop1:
+e08a | b5 00          | 	lda	mem0,x		; Pick up a 'dummy' value from memory.
+e08c | e8             | 	inx			; Increment the inner delay count.
+e08d | d0 fb          | 	bne	delayloop1	; Have we reached the end? If not, keep looping until we have.
+e08f | c8             | 	iny			; Increment the outer delay count.
+e090 | d0 f8          | 	bne	delayloop1	; Have we reached the end? If not, keep looping until we have.
+e092 |                | 
+e092 |                | 	; **********************************
+e092 |                | 	; ***                            ***
+e092 |                | 	; ***  Clear the entire screen.  ***
+e092 |                | 	; ***                            ***
+e092 |                | 	; **********************************
+e092 |                | 	
+e092 | a2 00          | 	ldx	#0		; Starting index into the blocks of screen memory.
+e094 | a9 20          | 	lda	#spc		; PETSCII ' ' character.
+e096 |                | more_vduE:
+e096 | 9d 00 80       | 	sta	vdu0,x		; Screen block 0.
+e099 | 9d 00 81       | 	sta	vdu1,x		; Screen block 1.
+e09c | 9d 00 82       | 	sta	vdu2,x		; Screen block 2.
+e09f | 9d 00 83       | 	sta	vdu3,x		; Screen block 3.
+e0a2 | 9d 00 84       | 	sta	vdu4,x		; Screen block 4.
+e0a5 | 9d 00 85       | 	sta	vdu5,x		; Screen block 5.
+e0a8 | 9d 00 86       | 	sta	vdu6,x		; Screen block 6.
+e0ab | 9d 00 87       | 	sta	vdu7,x		; Screen block 7.
+e0ae | e8             | 	inx			; Move on to the next location in the screen memory.
+e0af | d0 e5          | 	bne	more_vduE	; Keep looping until we have finished.
+e0b1 |                | 
+e0b1 |                | 	; ************************************************************
+e0b1 |                | 	; ***                                                      ***
+e0b1 |                | 	; ***  Initialise pages 0 and 1 to repeats of $00 to $FF.  ***
+e0b1 |                | 	; ***                                                      ***
+e0b1 |                | 	; ************************************************************
+e0b1 |                | 
+e0b1 |                | TEST_00FF:
+e0b1 |                | 
+e0b1 | a2 00          | 	ldx	#0		; Memory index.
+e0b3 |                | add2mem:
+e0b3 | 8a             | 	txa			; Transfer the memory index from 'X' into 'A'.
+e0b4 | 95 00          | 	sta	mem0,x		; Block 0 of memory.
+e0b6 | 9d 00 01       | 	sta	mem1,x		; Block 1 of memory.
+e0b9 | e8             | 	inx			; Move index along.
+e0ba | d0 f7          | 	bne	add2mem		; Keep looping until finished.
+e0bc |                | 
+e0bc | d8             | 	cld			; The D flag (decimal) is used to indicate a fault (i.e. to 
+e0bd |                | 				; continuously repeat this set of tests if an error is detected).
+e0bd |                | 
+e0bd |                | 	; *****************************************************
+e0bd |                | 	; ***                                               ***
+e0bd |                | 	; ***  Test memory block 0 for the value we wrote.  ***
+e0bd |                | 	; ***                                               ***
+e0bd |                | 	; *****************************************************
+e0bd |                | 
+e0bd | a2 00          | 	ldx	#0		; Memory block index. X should be 0 anyhow at this point...
+e0bf |                | 	
+e0bf |                | memread0Fa:
+e0bf | a9 2e          | 	lda	#dot		; PETSCII character '.'.
+e0c1 | 9d 00 81       | 	sta	vdu1,x		; Store a default '.' if no error so we can count characters on the screen easily!
+e0c4 | 8a             | 	txa			; Transfer the memory index from X to A.
+e0c5 | a0 07          | 	ldy	#gud1		; PETSCII character 'G' (standing for Good). Default memory status.
+e0c7 | d5 00          | 	cmp	mem0,x		; Compare what is in memory to what we expect it to be (the address).
+e0c9 | f0 08          | 	beq	memread0Fb	; YES - OK
+e0cb |                | 	; Memory value was BAD.
+e0cb | a0 02          | 	ldy	#bad1		; PETSCII character 'B' (standing for Bad). Overwrite the default.
+e0cd | f8             | 	sed			; Flag an error in the test for later.
+e0ce | b5 00          | 	lda	mem0,x		; Pickup the character value in error.
+e0d0 | 9d 00 81       | 	sta	vdu1,x		; Store the actual value we found to the VDU memory - for diagnostic pusposes.
+e0d3 |                | memread0Fb:
+e0d3 | 98             | 	tya			; Recover the status character.
+e0d4 | 9d 00 80       | 	sta	vdu0,x		; Store the status character in A to the corresponding memory location in block 0 of the screen. 
+e0d7 | e8             | 	inx			; Move on to the next byte in the memory block.
+e0d8 | d0 e5          | 	bne	memread0Fa	; Have we reached the end? If not, keep looping until we have.
+e0da |                | 
+e0da |                | 	; *****************************************************
+e0da |                | 	; ***                                               ***
+e0da |                | 	; ***  Test memory block 1 for the value we wrote.  ***
+e0da |                | 	; ***                                               ***
+e0da |                | 	; *****************************************************
+e0da |                | 
+e0da | a2 00          | 	ldx	#0		; Memory block index. X should be 0 anyhow at this point...
+e0dc |                | 	
+e0dc |                | memread0Fc:
+e0dc | a9 2e          | 	lda	#dot		; PETSCII character '.'.
+e0de | 9d 00 83       | 	sta	vdu3,x		; Store a default '.' if no error so we can count characters on the screen easily!
+e0e1 | 8a             | 	txa			; Transfer the memory index from X to A.
+e0e2 | a0 07          | 	ldy	#gud1		; PETSCII character 'G' (standing for Good). Default memory status.
+e0e4 | dd 00 01       | 	cmp	mem1,x		; Compare what is in memory to what we expect it to be (the address).
+e0e7 | f0 09          | 	beq	memread0Fd	; YES - OK
+e0e9 |                | 	; Memory value was BAD.
+e0e9 | a0 02          | 	ldy	#bad1		; PETSCII character 'B' (standing for Bad). Overwrite the default.
+e0eb | f8             | 	sed			; Flag an error in the test for later.
+e0ec | bd 00 01       | 	lda	mem1,x		; Pickup the character value in error.
+e0ef | 9d 00 83       | 	sta	vdu3,x		; Store the actual value we found to the VDU memory - for diagnostic pusposes.
+e0f2 |                | memread0Fd:
+e0f2 | 98             | 	tya			; Recover the status character.
+e0f3 | 9d 00 82       | 	sta	vdu2,x		; Store the status character in A to the corresponding memory location in block 2 of the screen. 
+e0f6 | e8             | 	inx			; Move on to the next byte in the memory block.
+e0f7 | d0 e3          | 	bne	memread0Fc	; Have we reached the end? If not, keep looping until we have.
+e0f9 |                | 
+e0f9 |                | 	; *************************************************************************************************
+e0f9 |                | 	; ***                                                                                           ***
+e0f9 |                | 	; ***  Perform a 'long' delay to permit the human to view the results displayed on the screen.  ***
+e0f9 |                | 	; ***                                                                                           ***
+e0f9 |                | 	; *************************************************************************************************
+e0f9 |                | 
+e0f9 | a2 00          | 	ldx	#dlyx		; Inner delay count.
+e0fb | a0 00          | 	ldy	#dlyy		; Outer delay count.
+e0fd |                | 		
+e0fd |                | delayloop2:
+e0fd | b5 00          | 	lda	mem0,x		; Pick up a 'dummy' value from memory.
+e0ff | e8             | 	inx			; Increment the inner delay count.
+e100 | d0 fb          | 	bne	delayloop2	; Have we reached the end? If not, keep looping until we have.
+e102 | c8             | 	iny			; Increment the outer delay count.
+e103 | d0 f8          | 	bne	delayloop2	; Have we reached the end? If not, keep looping until we have.
+e105 |                | 
+e105 |                | 	; ***********************************************************************
+e105 |                | 	; ***                                                                 ***
+e105 |                | 	; ***  Did an error occur? If so, keep repeating this bit of code...  ***
+e105 |                | 	; ***                                                                 ***
+e105 |                | 	; ***********************************************************************
+e105 |                | 
+e105 |                | 	; There is no instruction to test the state of the D flag. If the D flag
+e105 |                | 	; is clear - then no error occurred. If the D flag is set - then an error occurred.
+e105 |                | 	;
+e105 |                | 	; We 'fake' a D flag test by seeing what happens if we add $01 to $99.
+e105 |                | 	;
+e105 |                | 	; If the carry flag becomes SET - this indicates DECIMAL mode is active and (therefore) the
+e105 |                | 	; D flag is set thus indicating a fault has occurred.
+e105 |                | 	;
+e105 |                | 	; Conversely, if the carry flag is CLEAR - this indicates DECIMAL mode is not active and
+e105 |                | 	; (therefore) the D flag is clear thus indicating no fault occurred.
+e105 |                | 	 
+e105 | a9 99          | 	lda	#$99		; $99 = 10011001
+e107 | 18             | 	clc			; Clear the CARRY flag. 
+e108 | 69 01          | 	adc	#1		; Add 1 to regsister 'A'.
+e10a | 90 03          | 	bcc	OK_00FF		; If the carry flag is clear - no error was detected...
+e10c | 4c b1 e0       | 	jmp	TEST_00FF	; Keep repeating the test as an error was detected. 
+e10f |                | 
+e10f |                | OK_00FF:
+e10f |                | 
+e10f |                | 	; ***************************************************************
+e10f |                | 	; ***                                                         ***
+e10f |                | 	; ***  Initialise Pages 0 and 1 of memory to 55h = 01010101.  ***
+e10f |                | 	; ***                                                         ***
+e10f |                | 	; ***************************************************************
+e10f |                | 
+e10f |                | 	; Register A contains the value to write into memory. A value of 
+e10f |                | 	; 55 (hex) is used which equates to binary 01010101 (i.e. alternating
+e10f |                | 	; 1's and 0's).
+e10f |                | 
+e10f |                | TEST_55AA:
+e10f |                | 
+e10f | d8             | 	cld			; The D flag (decimal) is used to indicate a fault (i.e. to 
+e110 |                | 				; continuously repeat this set of tests if an error is detected).
+e110 |                | 					 
+e110 | a9 55          | 	lda	#tst55		; Value to write into memory blocks (01010101).
+e112 | a2 00          | 	ldx	#0		; Block index.
+e114 |                | 	
+e114 |                | memwrite55a:
+e114 | 95 00          | 	sta	mem0,x		; Block 0 of memory.
+e116 | 9d 00 01       | 	sta	mem1,x		; Block 1 of memory.
+e119 | e8             | 	inx			; Move on to the next byte in the memory block.
+e11a | d0 f8          | 	bne	memwrite55a	; Have we reached the end? If not, keep looping until we have.
+e11c |                | 
+e11c |                | 	; *****************************************************
+e11c |                | 	; ***                                               ***
+e11c |                | 	; ***  Test memory block 0 for the value we wrote.  ***
+e11c |                | 	; ***                                               ***
+e11c |                | 	; *****************************************************
+e11c |                | 
+e11c | a2 00          | 	ldx	#0		; Memory block index. X should be 0 anyhow at this point...
+e11e |                | 	
+e11e |                | memread55a:
+e11e | a0 07          | 	ldy	#gud1		; PETSCII character 'G' (standing for Good). Default memory status.
+e120 | b5 00          | 	lda	mem0,x		; Pick up the value from memory block 0.
+e122 | c9 55          | 	cmp	#tst55		; Is the value what we expect?
+e124 | f0 03          | 	beq	memread55b	; YES - OK
+e126 |                | 	; Memory value was BAD.
+e126 | a0 02          | 	ldy	#bad1		; PETSCII character 'B' (standing for Bad). Overwrite the default.
+e128 | f8             | 	sed			; Flag an error in the test for later.
+e129 |                | memread55b:
+e129 | 98             | 	tya			; Recover the status character.
+e12a | 9d 00 80       | 	sta	vdu0,x		; Store the status character in A to the corresponding memory location in block 0 of the screen. 
+e12d | e8             | 	inx			; Move on to the next byte in the memory block.
+e12e | d0 ee          | 	bne	memread55a	; Have we reached the end? If not, keep looping until we have.
+e130 |                | 
+e130 |                | 	; *****************************************************
+e130 |                | 	; ***                                               ***
+e130 |                | 	; ***  Test memory block 1 for the value we wrote.  ***
+e130 |                | 	; ***                                               ***
+e130 |                | 	; *****************************************************
+e130 |                | 
+e130 | a2 00          | 	ldx	#0		; Memory block index. X should be 0 anyhow at this point...
+e132 |                | 	
+e132 |                | memread55c:
+e132 | a0 07          | 	ldy	#gud1		; PETSCII character 'G' (standing for Good). Default memory status.
+e134 | bd 00 01       | 	lda	mem1,x		; Pick up the value from memory block 1.
+e137 | c9 55          | 	cmp	#tst55		; Is the value what we expect?
+e139 | f0 03          | 	beq	memread55d	; YES - OK
+e13b |                | 	; Memory value was BAD.
+e13b | a0 02          | 	ldy	#bad1		; PETSCII character 'B' (standing for Bad). Overwrite the default.
+e13d | f8             | 	sed			; Flag an error in the test for later.
+e13e |                | memread55d:
+e13e | 98             | 	tya			; Recover the status character.
+e13f | 9d 00 81       | 	sta	vdu1,x		; Store the status character in A to the corresponding memory location in block 1 of the screen. 
+e142 | e8             | 	inx			; Move on to the next byte in the memory block.
+e143 | d0 ed          | 	bne	memread55c	; Have we reached the end? If not, keep looping until we have.
+e145 |                | 
+e145 |                | 	; **************************************************************
+e145 |                | 	; ***                                                        ***
+e145 |                | 	; ***  Initialise Page 0 and 1 of memory to AAh = 10101010.  ***
+e145 |                | 	; ***                                                        ***
+e145 |                | 	; **************************************************************
+e145 |                | 
+e145 |                | 	; Register A contains the value to write into memory. A value of 
+e145 |                | 	; AA (hex) is used which equates to binary 10101010 (i.e. alternating
+e145 |                | 	; 1's and 0's).
+e145 |                |     
+e145 | a9 aa          | 	lda	#tstAA		; Value to write into memory blocks (10101010).
+e147 | a2 00          | 	ldx	#0		; Block index.
+e149 |                | 	
+e149 |                | memwriteAAa:
+e149 | 95 00          | 	sta	mem0,x		; Block 0 of memory.
+e14b | 9d 00 01       | 	sta	mem1,x		; Block 1 of memory.
+e14e | e8             | 	inx			; Move on to the next byte in the memory block.
+e14f | d0 f8          | 	bne	memwriteAAa	; Have we reached the end? If not, keep looping until we have.
+e151 |                | 
+e151 |                | 	; *****************************************************
+e151 |                | 	; ***                                               ***
+e151 |                | 	; ***  Test memory block 0 for the value we wrote.  ***
+e151 |                | 	; ***                                               ***
+e151 |                | 	; *****************************************************
+e151 |                | 
+e151 | a2 00          | 	ldx	#0		; Memory block index. X should be 0 anyhow at this point...
+e153 |                | 	
+e153 |                | memreadAAa:
+e153 | a0 07          | 	ldy	#gud1		; PETSCII character 'G' (standing for Good). Default memory status.
+e155 | b5 00          | 	lda	mem0,x		; Pick up the value from memory block 0.
+e157 | c9 aa          | 	cmp	#tstAA		; Is the value what we expect?
+e159 | f0 03          | 	beq	memreadAAb	; YES - OK
+e15b |                | 	; Memory value was BAD.
+e15b | a0 02          | 	ldy	#bad1		; PETSCII character 'B' (standing for Bad). Overwrite the default.
+e15d | f8             | 	sed			; Flag an error in the test for later.
+e15e |                | memreadAAb:
+e15e | 98             | 	tya			; Recover the status character.
+e15f | 9d 00 82       | 	sta	vdu2,x		; Store the status character in A to the corresponding memory location in block 2 of the screen. 
+e162 | e8             | 	inx			; Move on to the next byte in the memory block.
+e163 | d0 ee          | 	bne	memreadAAa	; Have we reached the end? If not, keep looping until we have.
+e165 |                | 
+e165 |                | 	; *****************************************************
+e165 |                | 	; ***                                               ***
+e165 |                | 	; ***  Test memory block 1 for the value we wrote.  ***
+e165 |                | 	; ***                                               ***
+e165 |                | 	; *****************************************************
+e165 |                | 
+e165 | a2 00          | 	ldx	#0		; Memory block index. X should be 0 anyhow at this point...
+e167 |                | 	
+e167 |                | memreadAAc:
+e167 | a0 07          | 	ldy	#gud1		; PETSCII character 'G' (standing for Good). Default memory status.
+e169 | bd 00 01       | 	lda	mem1,x		; Pick up the value from memory block 1.
+e16c | c9 aa          | 	cmp	#tstAA		; Is the value what we expect?
+e16e | f0 03          | 	beq	memreadAAd	; YES - OK
+e170 |                | 	; Memory value was BAD.
+e170 | a0 02          | 	ldy	#bad1		; PETSCII character 'B' (standing for Bad). Overwrite the default.
+e172 | f8             | 	sed			; Flag an error in the test for later.
+e173 |                | memreadAAd:
+e173 | 98             | 	tya			; Recover the status character.
+e174 | 9d 00 83       | 	sta	vdu3,x		; Store the status character in A to the corresponding memory location in block 3 of the screen. 
+e177 | e8             | 	inx			; Move on to the next byte in the memory block.
+e178 | d0 ed          | 	bne	memreadAAc	; Have we reached the end? If not, keep looping until we have.
+e17a |                | 
+e17a |                | 	; *************************************************************************************************
+e17a |                | 	; ***                                                                                           ***
+e17a |                | 	; ***  Perform a 'long' delay to permit the human to view the results displayed on the screen.  ***
+e17a |                | 	; ***                                                                                           ***
+e17a |                | 	; *************************************************************************************************
+e17a |                | 
+e17a | a2 00          | 	ldx	#dlyx		; Inner delay count.
+e17c | a0 00          | 	ldy	#dlyy		; Outer delay count.
+e17e |                | 		
+e17e |                | delayloop3:
+e17e | b5 00          | 	lda	mem0,x		; Pick up a 'dummy' value from memory.
+e180 | e8             | 	inx			; Increment the inner delay count.
+e181 | d0 fb          | 	bne	delayloop3	; Have we reached the end? If not, keep looping until we have.
+e183 | c8             | 	iny			; Increment the outer delay count.
+e184 | d0 f8          | 	bne	delayloop3	; Have we reached the end? If not, keep looping until we have.
+e186 |                | 
+e186 |                | 	; ***********************************************************************
+e186 |                | 	; ***                                                                 ***
+e186 |                | 	; ***  Did an error occur? If so, keep repeating this bit of code...  ***
+e186 |                | 	; ***                                                                 ***
+e186 |                | 	; ***********************************************************************
+e186 |                | 
+e186 |                | 	; There is no instruction to test the state of the D flag. If the D flag
+e186 |                | 	; is clear - then no error occurred. If the D flag is set - then an error occurred.
+e186 |                | 	;
+e186 |                | 	; We 'fake' a D flag test by seeing what happens if we add $01 to $99.
+e186 |                | 	;
+e186 |                | 	; If the carry flag becomes SET - this indicates DECIMAL mode is active and (therefore) the
+e186 |                | 	; D flag is set thus indicating a fault has occurred.
+e186 |                | 	;
+e186 |                | 	; Conversely, if the carry flag is CLEAR - this indicates DECIMAL mode is not active and
+e186 |                | 	; (therefore) the D flag is clear thus indicating no fault occurred.
+e186 |                | 	 
+e186 | a9 99          | 	lda	#$99		; $99 = 10011001
+e188 | 18             | 	clc			; Clear the CARRY flag. 
+e189 | 69 01          | 	adc	#1		; Add 1 to regsister 'A'.
+e18b | 90 03          | 	bcc	OK_55AA		; If the carry flag is clear - no error was detected...
+e18d | 4c 0f e1       | 	jmp	TEST_55AA	; Keep repeating the test as an error was detected. 
+e190 |                | 
+e190 |                | OK_55AA:
+e190 |                | 
+e190 |                | 	; ***************************************************************************************************
+e190 |                | 	; ***                                                                                             ***
+e190 |                | 	; ***  Prepare the screen. Blank except for block 0 containing all of the PETSCII character set.  ***
+e190 |                | 	; ***                                                                                             ***
+e190 |                | 	; ***************************************************************************************************
+e190 |                | 
+e190 | a2 00          | 	ldx	#0		; Starting index into the blocks of screen memory.
+e192 |                | more_vduZ:
+e192 | a9 20          | 	lda	#spc		; PETSCII ' ' character initially for all VDU memory blocks.
+e194 | 9d 00 80       | 	sta	vdu0,x		; Screen block 0.
+e197 | 9d 00 81       | 	sta	vdu1,x		; Screen block 1.
+e19a | 9d 00 82       | 	sta	vdu2,x		; Screen block 2.
+e19d | 9d 00 83       | 	sta	vdu3,x		; Screen block 3.
+e1a0 | 9d 00 84       | 	sta	vdu4,x		; Screen block 4.
+e1a3 | 9d 00 85       | 	sta	vdu5,x		; Screen block 5.
+e1a6 | 9d 00 86       | 	sta	vdu6,x		; Screen block 6.
+e1a9 | 9d 00 87       | 	sta	vdu7,x		; Screen block 7.
+e1ac | 8a             | 	txa			; The PETSCII character for VDU blocks 0 is the same as the index.
+e1ad | 9d 00 80       | 	sta	vdu0,x		; Screen block 0.
+e1b0 | e8             | 	inx			; Move on to the next location in the screen memory.
+e1b1 | d0 df          | 	bne	more_vduZ	; Keep looping until we have finished.
+e1b3 |                | 
+e1b3 |                | 	; Initialise the stack pointer.
+e1b3 |                | 	; =============================
+e1b3 |                | 	;
+e1b3 | a2 ff          | 	ldx	#$FF		; Top of page 1.
+e1b5 | 9a             | 	txs			; Store to stack pointer.
+e1b6 |                | 	
+e1b6 | d8             | 	cld			; Let's switch off DECIMAL mode - just in case it was on by accident!
+e1b7 |                | 	
+e1b7 |                | 	; Initialise the keyboard PIA.
+e1b7 |                | 	; ============================
+e1b7 |                | 	;
+e1b7 |                | 	; Port A.
+e1b7 |                | 	; =======
+e1b7 |                | 	;
+e1b7 | a9 0f          | 	lda	#$0F		; DDRA pins. 0=IN, 1=OUT. IIIIOOOO.
+e1b9 | 8d 10 e8       | 	sta	pia1 + 0	; Initialise DDRA.
+e1bc | a9 04          | 	lda	#$04		; Change to data register - but no CA1/CA2 interrupts!
+e1be | 8d 11 e8       | 	sta	pia1 + 1	; Output to CRA.
+e1c1 | a9 09          | 	lda	#$09		; Last row for the decimal keyboard decoder (enable ROW 9 for RUN/STOP key).
+e1c3 | 8d 10 e8       | 	sta	pia1 + 0	; Send to the keyboard PIA output port.
+e1c6 |                | 	;
+e1c6 |                | 	; Port B.
+e1c6 |                | 	; =======
+e1c6 |                | 	;
+e1c6 | a9 00          | 	lda	#$00		; DDRB pins. 0=IN, 1=OUT. IIIIIIII.
+e1c8 | 8d 12 e8       | 	sta	pia1 + 2	; Initialise DDRB.
+e1cb | a9 04          | 	lda	#$04		; Change to data register - but no CB1/CB2 interrupts!
+e1cd | 8d 13 e8       | 	sta	pia1 + 3	; Output to CRB.
+e1d0 |                | 	
+e1d0 |                | 	; ***************************************
+e1d0 |                | 	; ***                                 ***
+e1d0 |                | 	; ***  Zap out pages 0 and 1 to $00.  ***
+e1d0 |                | 	; ***                                 ***
+e1d0 |                | 	; ***************************************
+e1d0 |                | 
+e1d0 | e8             | 	inx			; Memory index. X was $FF from initialising the stack pointer.
+e1d1 | a9 00          | 	lda	#0		; Zap all of memory to $00.
+e1d3 |                | 	
+e1d3 |                | more_zap:	
+e1d3 | 95 00          | 	sta	mem0,x		; Zap Page 0.
+e1d5 | 9d 00 01       | 	sta	mem1,x		; Zap page 1.
+e1d8 | e8             | 	inx			; Move on to the next memory location within the block.
+e1d9 | d0 f8          | 	bne	more_zap	; Keep looping until completed.
+e1db |                | 
+e1db |                | ; ********************************************************************************************
+e1db |                | 
+e1db | 4c f0 e1       | 	jmp	SKIPKVEC	; Skip the kernal-1 and kernal-2 EDIT ROM entry vectors.
+e1de |                | 
+e1de |                | 	; This is the EDIT ROM entry point for kernal-2 (at address $E1DE).
+e1de |                | 	; =================================================================
+e1de |                | 	;
+e1de |                | 	.org	EDITROM + $1DE
+e1de | 4c 3d e0       | 	jmp	start		; Go do the test ROM code!
+e1e1 |                | 	
+e1e1 |                | 	; This is the EDIT ROM entry point for kernal-1 (at address $E1E1).
+e1e1 |                | 	; =================================================================
+e1e1 |                | 	;
+e1e1 |                | 	.org	EDITROM + $1E1
+e1e1 | 4c 3d e0       | 	jmp	start		; Go do the test ROM code!
+e1e4 |                | 		
+e1e4 |                | 	; Continue with the test ROM code.
+e1e4 |                | 	;
+e1e4 |                | 	.org	EDITROM + $1F0
+e1f0 |                | 	
+e1f0 |                | SKIPKVEC:			
+e1f0 |                | 
+e1f0 |                | ; ********************************************************************************************
+e1f0 |                | 	
+e1f0 |                | 	; ********************************
+e1f0 |                | 	; ***                          ***
+e1f0 |                | 	; ***  PAGE 0 RAM definitions  ***
+e1f0 |                | 	; ***                          ***
+e1f0 |                | 	; ********************************
+e1f0 |                | 
+e1f0 |                | ROMLL	.equ	0
+e1f0 |                | ROMHH	.equ	1
+e1f0 |                | 
+e1f0 |                | ROMSIZ	.equ	2
+e1f0 |                | 
+e1f0 |                | VDULL	.equ	3
+e1f0 |                | VDUHH	.equ	4
+e1f0 |                | 
+e1f0 |                | TEMPA	.equ	5
+e1f0 |                | 
+e1f0 |                | CKSUMLL	.equ	6
+e1f0 |                | CKSUMHH	.equ	7
+e1f0 |                | 
+e1f0 |                | CNTDOWN	.equ	8
+e1f0 |                | 
+e1f0 |                | STARTLL	.equ	9
+e1f0 |                | STARTHH	.equ	10
+e1f0 |                | 
+e1f0 |                | ENDLL	.equ	11
+e1f0 |                | ENDHH	.equ	12
+e1f0 |                | 
+e1f0 |                | ADDRLL	.equ	13
+e1f0 |                | ADDRHH	.equ	14
+e1f0 |                | 
+e1f0 |                | BITMASK	.equ	15
+e1f0 |                | 
+e1f0 |                | TESTNO	.equ	16
+e1f0 |                | 
+e1f0 |                | PASSLL	.equ	17
+e1f0 |                | PASSMM	.equ	18
+e1f0 |                | PASSHH	.equ	19
+e1f0 |                | 
+e1f0 |                | MEMSIZE	.equ	20
+e1f0 |                | 
+e1f0 |                | SEQ	.equ	21
+e1f0 |                | 
+e1f0 |                | 	; Initialise the COUNTDOWN...
+e1f0 |                | 	;
+e1f0 | a9 ff          | 	lda	#$FF		; Start at the highest value...
+e1f2 | 85 08          | 	sta	CNTDOWN
+e1f4 |                | 	
+e1f4 |                | KEYROM:
+e1f4 |                | 
+e1f4 |                | 	; ************************************************************************************
+e1f4 |                | 	; ***                                                                              ***
+e1f4 |                | 	; ***  Checksum each ROM. Note that checksumming the $Exxx ROM is not sensible...  ***
+e1f4 |                | 	; ***                                                                              ***
+e1f4 |                | 	; ************************************************************************************
+e1f4 |                | 
+e1f4 |                | 	; Initialise where we are going to write the results to the screen.
+e1f4 |                | 	; =================================================================
+e1f4 |                | 	;
+e1f4 | a9 40          | 	lda	#<(vdu0+8*40+0)		; VDU screen low address.
+e1f6 | 85 03          | 	sta	VDULL		; "   "   "   "   "   "
+e1f8 | a9 81          | 	lda	#>(vdu0+8*40+0)		; VDU screen low address.
+e1fa | 85 04          | 	sta	VDUHH		; "   "   "   "   "   "
+e1fc |                | 	
+e1fc |                | 	; Output some (helpful) text to the screen...
+e1fc |                | 	; ===========================================
+e1fc |                | 	;
+e1fc | a2 01          | 	ldx	#ROMMSG_LEN		; Length of character string.
+e1fe | a0 00          | 	ldy	#0		; Index to string.
+e200 |                | ROMMSGa:
+e200 | b9 ba e6       | 	lda	ROMMSG,y	; Pickup the first/next character
+e203 | 20 47 e6       | 	jsr	OUTCHAR		; Display to screen.
+e206 | c8             | 	iny			; Index to the next character.
+e207 | ca             | 	dex			; One less character to output.
+e208 | d0 f6          | 	bne	ROMMSGa		; Loop until all done.	
+e20a |                | 
+e20a |                | 		 
+e20a | a9 b0          | 	lda	#$B0		; Checksum the 2K rom at B000 - B7FF.
+e20c | 20 ea e2       | 	jsr	ROMCKSUM	; Do it...
+e20f | a9 c0          | 	lda	#$C0		; Checksum the 2K rom at C000 - C7FF.
+e211 | 20 ea e2       | 	jsr	ROMCKSUM	; Do it...
+e214 | a9 d0          | 	lda	#$D0		; Checksum the 2K rom at D000 - D7FF.
+e216 | 20 ea e2       | 	jsr	ROMCKSUM	; Do it...
+e219 | a9 f0          | 	lda	#$F0		; Checksum the 2K rom at F000 - F7FF.
+e21b | 20 ea e2       | 	jsr	ROMCKSUM	; Do it...
+e21e |                | 
+e21e |                | 	; Move to next line (or 2nd half), skip 4 chars
+e21e | a9 6c          | 	lda	#<(vdu0+9*40+4)		; VDU screen low address.
+e220 | 85 03          | 	sta	VDULL		; "   "   "   "   "   "
+e222 | a9 81          | 	lda	#>(vdu0+9*40+4)		; VDU screen low address.
+e224 | 85 04          | 	sta	VDUHH		; "   "   "   "   "   "
+e226 |                | 	
+e226 | a9 b8          | 	lda	#$B8		; Checksum the 2K rom at B800 - BFFF.
+e228 | 20 ea e2       | 	jsr	ROMCKSUM	; Do it...
+e22b | a9 c8          | 	lda	#$C8		; Checksum the 2K rom at C800 - CFFF.
+e22d | 20 ea e2       | 	jsr	ROMCKSUM	; Do it...
+e230 | a9 d8          | 	lda	#$D8		; Checksum the 2K rom at D800 - DFFF.
+e232 | 20 ea e2       | 	jsr	ROMCKSUM	; Do it...
+e235 | a9 f8          | 	lda	#$F8		; Checksum the 2K rom at F800 - FFFF.
+e237 | 20 ea e2       | 	jsr	ROMCKSUM	; Do it...
+e23a |                | 
+e23a |                | 
+e23a |                | 	; ************************************************************************************
+e23a |                | 	; ***                                                                              ***
+e23a |                | 	; ***  Dump ROM starts                                                             ***
+e23a |                | 	; ***                                                                              ***
+e23a |                | 	; ************************************************************************************
+e23a |                | 
+e23a | a9 90          | 	lda	#<(vdu0+10*40+0)		; VDU screen low address.
+e23c | 85 03          | 	sta	VDULL		; "   "   "   "   "   "
+e23e | a9 81          | 	lda	#>(vdu0+10*40+0)		; VDU screen low address.
+e240 | 85 04          | 	sta	VDUHH		; "   "   "   "   "   "
+e242 | a9 b0          | 	lda	#$B0		
+e244 | 20 28 e3       | 	jsr	DUMPROM
+e247 | a9 b8          | 	lda	#<(vdu0+11*40+0)		; VDU screen low address.
+e249 | 85 03          | 	sta	VDULL		; "   "   "   "   "   "
+e24b | a9 81          | 	lda	#>(vdu0+11*40+0)		; VDU screen low address.
+e24d | 85 04          | 	sta	VDUHH		; "   "   "   "   "   "
+e24f | a9 b8          | 	lda	#$B8		
+e251 | 20 28 e3       | 	jsr	DUMPROM
+e254 |                | 
+e254 | a9 e0          | 	lda	#<(vdu0+12*40+0)		; VDU screen low address.
+e256 | 85 03          | 	sta	VDULL		; "   "   "   "   "   "
+e258 | a9 81          | 	lda	#>(vdu0+12*40+0)		; VDU screen low address.
+e25a | 85 04          | 	sta	VDUHH		; "   "   "   "   "   "
+e25c | a9 c0          | 	lda	#$C0		
+e25e | 20 28 e3       | 	jsr	DUMPROM
+e261 | a9 08          | 	lda	#<(vdu0+13*40+0)		; VDU screen low address.
+e263 | 85 03          | 	sta	VDULL		; "   "   "   "   "   "
+e265 | a9 82          | 	lda	#>(vdu0+13*40+0)		; VDU screen low address.
+e267 | 85 04          | 	sta	VDUHH		; "   "   "   "   "   "
+e269 | a9 c8          | 	lda	#$C8		
+e26b | 20 28 e3       | 	jsr	DUMPROM
+e26e |                | 
+e26e | a9 30          | 	lda	#<(vdu0+14*40+0)		; VDU screen low address.
+e270 | 85 03          | 	sta	VDULL		; "   "   "   "   "   "
+e272 | a9 82          | 	lda	#>(vdu0+14*40+0)		; VDU screen low address.
+e274 | 85 04          | 	sta	VDUHH		; "   "   "   "   "   "
+e276 | a9 d0          | 	lda	#$D0		
+e278 | 20 28 e3       | 	jsr	DUMPROM
+e27b | a9 58          | 	lda	#<(vdu0+15*40+0)		; VDU screen low address.
+e27d | 85 03          | 	sta	VDULL		; "   "   "   "   "   "
+e27f | a9 82          | 	lda	#>(vdu0+15*40+0)		; VDU screen low address.
+e281 | 85 04          | 	sta	VDUHH		; "   "   "   "   "   "
+e283 | a9 d8          | 	lda	#$D8		
+e285 | 20 28 e3       | 	jsr	DUMPROM
+e288 |                | 
+e288 | a9 80          | 	lda	#<(vdu0+16*40+0)		; VDU screen low address.
+e28a | 85 03          | 	sta	VDULL		; "   "   "   "   "   "
+e28c | a9 82          | 	lda	#>(vdu0+16*40+0)		; VDU screen low address.
+e28e | 85 04          | 	sta	VDUHH		; "   "   "   "   "   "
+e290 | a9 f0          | 	lda	#$F0		
+e292 | 20 28 e3       | 	jsr	DUMPROM
+e295 | a9 a8          | 	lda	#<(vdu0+17*40+0)		; VDU screen low address.
+e297 | 85 03          | 	sta	VDULL		; "   "   "   "   "   "
+e299 | a9 82          | 	lda	#>(vdu0+17*40+0)		; VDU screen low address.
+e29b | 85 04          | 	sta	VDUHH		; "   "   "   "   "   "
+e29d | a9 f8          | 	lda	#$F8		
+e29f | 20 28 e3       | 	jsr	DUMPROM
+e2a2 |                | 
+e2a2 |                | 
+e2a2 |                | 	; ***************************************************************************************
+e2a2 |                | 	; ***                                                                                 ***
+e2a2 |                | 	; ***  Scan the key matrix and display the results (in hex) on a line on the screen.  ***
+e2a2 |                | 	; ***                                                                                 ***
+e2a2 |                | 	; ***************************************************************************************
+e2a2 |                | 
+e2a2 |                | 	; Initialise where we are going to write the results to the screen.
+e2a2 |                | 	; =================================================================
+e2a2 |                | 	;
+e2a2 | a9 20          | 	lda	#<(vdu0+20*40+0)		; VDU screen low address.
+e2a4 | 85 03          | 	sta	VDULL		; "   "   "   "   "   "
+e2a6 | a9 83          | 	lda	#>(vdu0+20*40+0)		; VDU screen low address.
+e2a8 | 85 04          | 	sta	VDUHH		; "   "   "   "   "   "
+e2aa |                | 		
+e2aa |                | 	; Output some (helpful) text to the screen...
+e2aa |                | 	; ===========================================
+e2aa |                | 	;
+e2aa | a2 01          | 	ldx	#KBDMSG_LEN		; Length of character string.
+e2ac | a0 00          | 	ldy	#0		; Index to string.
+e2ae |                | KBDMSGa:
+e2ae | b9 bb e6       | 	lda	KBDMSG,y	; Pickup the first/next character
+e2b1 | 20 47 e6       | 	jsr	OUTCHAR		; Display to screen.
+e2b4 | c8             | 	iny			; Index to the next character.
+e2b5 | ca             | 	dex			; One less character to output.
+e2b6 | d0 f6          | 	bne	KBDMSGa		; Loop until all done.	
+e2b8 |                | 
+e2b8 | 20 44 e3       | 	jsr	KEYMAT		; Display the keyboard matrix.
+e2bb | 20 c2 e6       | 	jsr	IEEETEST	; Display compact IEEE-488 interface status.
+e2be |                | 
+e2be |                | 	; Initialise where we are going to write the results to the screen.
+e2be |                | 	; =================================================================
+e2be |                | 	;
+e2be | a9 c0          | 	lda	#<(vdu0+24*40+0)		; VDU screen low address.
+e2c0 | 85 03          | 	sta	VDULL		; "   "   "   "   "   "
+e2c2 | a9 83          | 	lda	#>(vdu0+24*40+0)		; VDU screen low address.
+e2c4 | 85 04          | 	sta	VDUHH		; "   "   "   "   "   "
+e2c6 |                | 	
+e2c6 |                | 	; Output some (helpful) text to the screen...
+e2c6 |                | 	; ===========================================
+e2c6 |                | 	;
+e2c6 | a2 01          | 	ldx	#CNTMSG_LEN	; Length of character string.
+e2c8 | a0 00          | 	ldy	#0		; Index to string.
+e2ca |                | CNTMSGa:
+e2ca | b9 bc e6       | 	lda	CNTMSG,y	; Pickup the first/next character
+e2cd | 20 47 e6       | 	jsr	OUTCHAR		; Display to screen.
+e2d0 | c8             | 	iny			; Index to the next character.
+e2d1 | ca             | 	dex			; One less character to output.
+e2d2 | d0 f6          | 	bne	CNTMSGa		; Loop until all done.	
+e2d4 |                | 
+e2d4 |                | 	; Output the current count down value to the screen.
+e2d4 |                | 	; ==================================================
+e2d4 |                | 	;
+e2d4 | a5 08          | 	lda	CNTDOWN		; Pick up the count down value.
+e2d6 | 20 71 e6       | 	jsr	OUTHEXA		; And display it on the screen.
+e2d9 |                | 	
+e2d9 |                | 
+e2d9 |                | 	; **********************************
+e2d9 |                | 	; ***                            ***
+e2d9 |                | 	; ***  Terminate or continue...  ***
+e2d9 |                | 	; ***                            ***
+e2d9 |                | 	; **********************************
+e2d9 |                | 
+e2d9 | c6 08          | 	dec	CNTDOWN		; One less to do...
+e2db | a5 08          | 	lda	CNTDOWN		; What is the current countdown?
+e2dd | c9 ff          | 	cmp	#$FF		; Is it one less than 0?
+e2df | f0 03          | 	beq	ENDKEYROM	; all done if Z flag is set.	
+e2e1 | 4c f4 e1       |     jmp	KEYROM		; Play it again Sam...	
+e2e4 |                | ENDKEYROM:
+e2e4 |                | 
+e2e4 | 20 69 e3       | 	jsr	DRAMCHECK	; Let's go and check the DRAM!!!
+e2e7 |                | 	
+e2e7 |                | ALLDONE:	
+e2e7 | 4c e7 e2       | 	jmp	ALLDONE		; Just sit here forever in a loop...
+e2ea |                | 	
+e2ea |                | ; **********************
+e2ea |                | ; ***                ***
+e2ea |                | ; ***  SUBROUTINES.  ***
+e2ea |                | ; ***                ***
+e2ea |                | ; **********************
+e2ea |                | 
+e2ea |                | 	; =================================================================================
+e2ea |                | 	
+e2ea |                | ; ******************
+e2ea |                | ; ***            ***
+e2ea |                | ; ***  ROMCKSUM  ***
+e2ea |                | ; ***            ***
+e2ea |                | ; ******************
+e2ea |                | 
+e2ea |                | ROMCKSUM:
+e2ea |                | 
+e2ea |                | 	; Store the ROM we are performing a checksum on into page 0 memory.
+e2ea |                | 	;
+e2ea | 85 01          | 	sta	ROMHH
+e2ec |                | 	
+e2ec |                | 	; Display the ROM we are checksumming to the human...
+e2ec |                | 	;
+e2ec | 20 71 e6       | 	jsr	OUTHEXA
+e2ef |                | 	
+e2ef |                | 	; Display an '=' sign...
+e2ef |                | 	;
+e2ef | a9 3d          | 	lda	#PETSCII_EQ
+e2f1 | 20 47 e6       | 	jsr	OUTCHAR
+e2f4 |                | 	
+e2f4 | a9 00          | 	lda	#0		; Initialise the low byte of the ROM address in page 0 memory.
+e2f6 | 85 00          | 	sta	ROMLL		; "   "   "   "   "   "   "   "   "   "   "   "   "   "   "
+e2f8 |                | 	
+e2f8 | a9 08          | 	lda	#$8		; Number of pages of 256 bytes in 2K.
+e2fa | 85 02          | 	sta	ROMSIZ	; "   "   "   "   "   "   "   "   "   "   "
+e2fc |                | 		
+e2fc | a9 00          | 	lda	#0		; Initially zero the checksum value.
+e2fe | 85 06          | 	sta	CKSUMLL		; Low byte.
+e300 | 85 07          | 	sta	CKSUMHH		; High byte.
+e302 |                | 	
+e302 |                | 	; Do the actual CHECKSUM!!!
+e302 |                | 	; =========================
+e302 |                | 	
+e302 |                | CKSUMouter:
+e302 |                | 
+e302 | a0 00          | 	ldy	#0		; First block byte index.
+e304 |                | 
+e304 |                | CKSUMinner:
+e304 |                | 
+e304 | b1 00          | 	lda	(ROMLL),y	; Pick up the first/next byte of the block.
+e306 | 18             | 	clc			; No carry flag.
+e307 | 65 06          | 	adc	CKSUMLL		; Merge in to the checksum low byte.
+e309 | 85 06          | 	sta	CKSUMLL		; "   "   "   "   "   "   "   "   "
+e30b | a9 00          | 	lda	#0		; Merge in any carry to the high byte of the checksum.
+e30d | 65 07          | 	adc	CKSUMHH		; "   "   "   "   "   "   "   "   "   "   "   "   "   
+e30f | 85 07          | 	sta	CKSUMHH		; "   "   "   "   "   "   "   "   "   "   "   "   "   
+e311 |                | 	
+e311 | c8             | 	iny			; Next byte of the block.
+e312 | d0 f0          | 	bne	CKSUMinner	; Keep looping until finished.
+e314 |                | 	
+e314 |                | 	; We have done at least one block of the checksum.
+e314 |                | 	
+e314 |                | 	; Increment the ROM block pointer for the next time around the loop (if any).
+e314 |                | 	;
+e314 | e6 01          | 	inc	ROMHH		; High byte of ROM address.
+e316 |                | 	
+e316 |                | 	; Decrement the number of 256-byte blocks (since we have just processed one block).
+e316 |                | 	;
+e316 | c6 02          | 	dec	ROMSIZ
+e318 |                | 	
+e318 | d0 e8          | 	bne	CKSUMouter	; Keep looping until finished.
+e31a |                | 	
+e31a |                | 	; Done!!!
+e31a |                | 	; =======
+e31a |                | 
+e31a | a5 07          | 	lda	CKSUMHH		; Pick up the high byte of the checksum.
+e31c | 20 71 e6       | 	jsr	OUTHEXA		; Display the result.
+e31f | a5 06          | 	lda	CKSUMLL		; Pick up the low byte of the checksum.
+e321 | 20 71 e6       | 	jsr	OUTHEXA		; Display the result.
+e324 |                | 	
+e324 | 20 69 e6       | 	jsr	OUTSPACE	; Output a space.
+e327 |                | 	
+e327 | 60             | 	rts			; Return back to caller.
+e328 |                | 
+e328 |                | 	; =================================================================================
+e328 |                | 
+e328 |                | ; ******************
+e328 |                | ; ***            ***
+e328 |                | ; ***  DUMPROM   ***
+e328 |                | ; ***            ***
+e328 |                | ; ******************
+e328 |                | 
+e328 |                | DUMPROM:
+e328 |                | 	
+e328 | 85 01          | 	sta	ROMHH	; Store the ROM we are dumping into page 0 memory.
+e32a |                | 
+e32a |                | 	
+e32a |                | 	; Display the ROM addr followed by ': '
+e32a | 20 71 e6       | 	jsr	OUTHEXA	
+e32d | a9 3a          | 	lda	#PETSCII_COLON
+e32f | 20 47 e6       | 	jsr	OUTCHAR
+e332 | 20 69 e6       | 	jsr	OUTSPACE
+e335 |                | 
+e335 |                | 	; Dump 16 bytes of data
+e335 | a0 00          | 	ldy #0
+e337 | 84 00          | 	sty ROMLL	; Make sure the low byte of the address is correctly set
+e339 | b1 00          | _l	lda (ROMLL),y
+e33b | 20 71 e6       | 	jsr	OUTHEXA
+e33e | c8             | 	iny
+e33f | c0 10          | 	cpy #16
+e341 | d0 f6          | 	bne _l
+e343 |                | 
+e343 |                | 	; Done!!!
+e343 |                | 	; =======
+e343 |                | 	
+e343 | 60             | 	rts			; Return back to caller.
+e344 |                | 
+e344 |                | 	; =================================================================================
+e344 |                | 
+e344 |                | ; ****************
+e344 |                | ; ***          ***
+e344 |                | ; ***  KEYMAT  ***
+e344 |                | ; ***          ***
+e344 |                | ; ****************
+e344 |                | 
+e344 |                | KEYMAT:
+e344 |                | 
+e344 |                | 	; Initialise the keyboard PIA for keyboard row 0.
+e344 |                | 	; ===============================================
+e344 |                | 	;
+e344 | a9 00          | 	lda	#0		; Start at keyboard row 0.
+e346 | 8d 10 e8       | 	sta	pia1 + 0	; Initialise the PIA.
+e349 |                | 	
+e349 |                | 	; Ten rows to the key matrix.
+e349 |                | 	; ===========================
+e349 |                | 	;
+e349 | a2 0a          | 	ldx	#10
+e34b |                | 	
+e34b |                | KEYMATa:
+e34b |                | 
+e34b |                | 	; Simple delay to allow the keyboard logic to register any keypress.
+e34b |                | 	;
+e34b | a0 00          | 	ldy	#0		; Initial value.
+e34d |                | KEYMATb:
+e34d | ea             | 	nop			; Do nothing...
+e34e | ea             | 	nop			; Do nothing...
+e34f | 88             | 	dey			; Decrement delay counter.
+e350 | d0 fb          | 	bne	KEYMATb		; Keep looping until the delay has expired.
+e352 |                | 	
+e352 |                | 	; Input the current keyboard matrix value from the PIA.
+e352 |                | 	; =====================================================
+e352 |                | 	;
+e352 | ad 12 e8       | 	lda	pia1 + 2	; PIA1 B data port.
+e355 |                | 		
+e355 |                | 	; Invert (1's complement) the value so the default is $00 and a key press is reported
+e355 |                | 	; as a '1' bit in the appropriate location of the byte.
+e355 |                | 	;
+e355 | 49 ff          | 	eor	#$FF
+e357 |                | 	
+e357 |                | 	; Output the value to the screen. Note the subroutine doesn't corrupt 'A'.
+e357 |                | 	;
+e357 | 20 71 e6       | 	jsr	OUTHEXA
+e35a |                | 
+e35a |                | 	; Followed by a space character to format the screen in a simple manner.
+e35a |                | 	;
+e35a | 20 69 e6       | 	jsr	OUTSPACE
+e35d |                | 	
+e35d |                | 	; Increment the keyboard row in the PIA.
+e35d |                | 	; ======================================
+e35d |                | 	;
+e35d | ee 10 e8       | 	inc	pia1 + 0
+e360 |                | 	
+e360 | ca             | 	dex			; One less row
+e361 | d0 e8          | 	bne	KEYMATa		; Loop until all done.
+e363 |                | 	
+e363 |                | 	; Leave the row set to '9' so I can check the status of the RUN/STOP key.
+e363 |                | 	; =======================================================================
+e363 |                | 	;
+e363 | a9 09          | 	lda	#$09
+e365 | 8d 10 e8       | 	sta	pia1+0
+e368 |                | 	
+e368 | 60             | 	rts			; Return back to caller.
+e369 |                | 
+e369 |                | 	; =================================================================================
+e369 |                | 	
+e369 |                | ; *******************
+e369 |                | ; ***             ***
+e369 |                | ; ***  DRAMCHECK  ***
+e369 |                | ; ***             ***
+e369 |                | ; *******************
+e369 |                | 
+e369 |                | DRAMCHECK:
+e369 |                | 
+e369 |                | 	; ========================================
+e369 |                | 	; Initialise for full DRAM memory testing.
+e369 |                | 	; ========================================
+e369 |                | 	
+e369 | a9 02          | 	lda	#$02		; Start of DRAM to test (high byte).
+e36b | 85 0a          | 	sta	STARTHH		; "   "   "   "   "   "   "   "   "
+e36d |                | 	
+e36d | a9 00          | 	lda	#$00		; Start of DRAM to test (low byte).
+e36f | 85 09          | 	sta	STARTLL		; "   "   "   "   "   "   "   "   "
+e371 |                | 	
+e371 |                | 	; Find top of ram. Assume either 4K, 8K, 16K or 32K.
+e371 |                | 	
+e371 | a9 ff          | 	lda	#$FF		; Must end on a 256-byte boundary.
+e373 | 85 0b          | 	sta	ENDLL
+e375 | 85 0d          | 	sta	ADDRLL
+e377 |                | 	
+e377 | a9 0f          | 	lda	#$0F		; Assume 4K (0FFF) to start with.
+e379 | 85 0c          | 	sta	ENDHH
+e37b | 85 0e          | 	sta	ADDRHH
+e37d |                | 	
+e37d | a9 04          | 	lda	#$04		; 4K
+e37f | 85 14          | 	sta	MEMSIZE
+e381 | 85 05          | 	sta	TEMPA
+e383 |                | 	
+e383 | a9 00          | 	lda	#0		; Used as a 'dummy index'.
+e385 | a8             | 	tay
+e386 |                | 
+e386 |                | MEMSIZEa:
+e386 |                | 
+e386 | a9 55          | 	lda	#tst55
+e388 | 91 0d          | 	sta	(ADDRLL),y
+e38a | d1 0d          | 	cmp	(ADDRLL),y
+e38c | d0 23          | 	bne	MEMSIZEb
+e38e |                | 	
+e38e | a9 aa          | 	lda	#tstAA
+e390 | 91 0d          | 	sta	(ADDRLL),y
+e392 | d1 0d          | 	cmp	(ADDRLL),y
+e394 | d0 1b          | 	bne	MEMSIZEb
+e396 |                | 
+e396 | a5 0d          | 	lda	ADDRLL
+e398 | 85 0b          | 	sta	ENDLL
+e39a |                | 	
+e39a | a5 0e          | 	lda	ADDRHH
+e39c | 85 0c          | 	sta	ENDHH
+e39e |                | 	
+e39e | a5 05          | 	lda	TEMPA
+e3a0 | 85 14          | 	sta	MEMSIZE
+e3a2 |                | 	
+e3a2 | 38             | 	sec
+e3a3 |                | 	
+e3a3 | 26 0e          | 	rol	ADDRHH
+e3a5 |                | 	
+e3a5 | f8             | 	sed
+e3a6 | a5 05          | 	lda	TEMPA
+e3a8 | 18             | 	clc
+e3a9 | 65 05          | 	adc	TEMPA
+e3ab | 85 05          | 	sta	TEMPA
+e3ad | d8             | 	cld
+e3ae |                | 	
+e3ae | 4c 86 e3       | 	jmp	MEMSIZEa
+e3b1 |                | 	
+e3b1 |                | MEMSIZEb:
+e3b1 |                | 		
+e3b1 | a9 00          | 	lda	#$00		; Initialise the 24-bit pass counter to zero.
+e3b3 | 85 11          | 	sta	PASSLL		; "   "   "   "   "   "   "   "   "   "   "  
+e3b5 | 85 12          | 	sta	PASSMM		; "   "   "   "   "   "   "   "   "   "   "  
+e3b7 | 85 13          | 	sta	PASSHH		; "   "   "   "   "   "   "   "   "   "   "  
+e3b9 |                | 	
+e3b9 |                | 	; Clear the screen
+e3b9 |                | 	
+e3b9 | a2 00          | 	ldx	#0		; Starting index into the blocks of screen memory.
+e3bb |                | DRAMCHECKa:
+e3bb | a9 20          | 	lda	#spc		; PETSCII ' ' character for all VDU memory blocks.
+e3bd | 9d 00 80       | 	sta	vdu0,x		; Screen block 0.
+e3c0 | 9d 00 81       | 	sta	vdu1,x		; Screen block 1.
+e3c3 | 9d 00 82       | 	sta	vdu2,x		; Screen block 2.
+e3c6 | 9d 00 83       | 	sta	vdu3,x		; Screen block 3.
+e3c9 | 9d 00 84       | 	sta	vdu4,x		; Screen block 4.
+e3cc | 9d 00 85       | 	sta	vdu5,x		; Screen block 5.
+e3cf | 9d 00 86       | 	sta	vdu6,x		; Screen block 6.
+e3d2 | 9d 00 87       | 	sta	vdu7,x		; Screen block 7.
+e3d5 | e8             | 	inx			; Move on to the next location in the screen memory.
+e3d6 | d0 e3          | 	bne	DRAMCHECKa	; Keep looping until we have finished.
+e3d8 |                | 	
+e3d8 |                | 	; Display a useful message to the user...
+e3d8 |                | 	
+e3d8 |                | 	; Initialise where we are going to write the text message to the screen.
+e3d8 |                | 	; ======================================================================
+e3d8 |                | 	;
+e3d8 | a9 00          | 	lda	#$00		; VDU screen low address.
+e3da | 85 03          | 	sta	VDULL		; "   "   "   "   "   "
+e3dc | a9 80          | 	lda	#$80		; VDU screen high address.
+e3de | 85 04          | 	sta	VDUHH		; "   "   "   "   "   "
+e3e0 |                | 	
+e3e0 | a5 14          | 	lda	MEMSIZE
+e3e2 | 20 71 e6       | 	jsr	OUTHEXA
+e3e5 |                | 	
+e3e5 |                | 	; Output some (helpful) text to the screen...
+e3e5 |                | 	; ===========================================
+e3e5 |                | 	;
+e3e5 | a2 01          | 	ldx	#DRAMMSG_LEN	; Length of character string.
+e3e7 | a0 00          | 	ldy	#0		; Index to string.
+e3e9 |                | DRAMCHECKb:
+e3e9 | b9 bd e6       | 	lda	DRAMMSG,y	; Pickup the first/next character
+e3ec | 20 47 e6       | 	jsr	OUTCHAR		; Display to screen.
+e3ef | c8             | 	iny			; Index to the next character.
+e3f0 | ca             | 	dex			; One less character to output.
+e3f1 | d0 f6          | 	bne	DRAMCHECKb	; Loop until all done.	
+e3f3 |                | 
+e3f3 |                | DRAMLOOP:
+e3f3 |                | 
+e3f3 |                | 	; Initialise where we are going to write the results of the memory test (good or bad) to the screen.
+e3f3 |                | 	; ==================================================================================================
+e3f3 |                | 	;
+e3f3 | a9 a0          | 	lda	#$A0		; VDU screen low address.
+e3f5 | 85 03          | 	sta	VDULL		; "   "   "   "   "   "
+e3f7 | a9 80          | 	lda	#$80		; VDU screen high address.
+e3f9 | 85 04          | 	sta	VDUHH		; "   "   "   "   "   "
+e3fb |                | 
+e3fb |                | 	; Output '.'s to the screen to indicate how many individual tests we have for 1 pass of the DRAM test.
+e3fb |                | 	;
+e3fb | a9 0a          | 	lda	#10		; 10+1 dots required.
+e3fd | a8             | 	tay			; Get it to the correct register.
+e3fe | a9 2e          | 	lda	#dot		; PETSCII '.'.
+e400 |                | DoMoreDots:
+e400 | 91 03          | 	sta	(VDULL),y	; Display on screen.
+e402 | 88             | 	dey			; One less '.' to display.
+e403 | d0 fb          | 	bne	DoMoreDots	; Keep repeating until almost done.
+e405 | 91 03          | 	sta	(VDULL),y	; Didn't quite do the last one - so do it now!
+e407 |                | 		
+e407 | a9 00          | 	lda	#$00		; Y is used as a dummy index and it ***MUST*** be preserved as 0 throughout the test.
+e409 | a8             | 	tay
+e40a |                | 
+e40a | a9 00          | 	lda	#0
+e40c | 85 15          | 	sta	SEQ
+e40e |                | 	
+e40e | 4c 11 e4       | 	jmp	TEST0		; Go do it...
+e411 |                | 	
+e411 |                | 	; =======
+e411 |                | 	; Test 0.
+e411 |                | 	; =======
+e411 |                | 
+e411 |                | TEST0:
+e411 |                | 
+e411 | a9 00          | 	lda	#0		; Start off with test number 0 - set all of memory to 0 and test for 0 (i.e.
+e413 |                | 				; test for a stuck '1').
+e413 | 85 10          | 	sta	TESTNO
+e415 | a5 10          | 	lda	TESTNO		; DEBUG
+e417 | 20 90 e6       | 	jsr	OUTHEXAL	; DEBUG
+e41a |                | 	
+e41a |                | 	; Write 0's to all of memory...
+e41a |                | 	
+e41a | 20 bd e5       | 	jsr	INIASCEND	; We are going to go up the memory.
+e41d |                | T0loop1:
+e41d | 20 25 e6       | 	jsr	W0		; Write a '0' bit into memory.
+e420 | 20 d7 e5       | 	jsr	INCBIT		; Move on to the next bit of memory.
+e423 | 90 f8          | 	bcc	T0loop1		; Keep looping until done...
+e425 |                | 	
+e425 |                | 	; Verify that 0's are still in all of memory...
+e425 |                | 	 
+e425 | 20 bd e5       | 	jsr	INIASCEND	; We are going to go up the memory.
+e428 |                | T0loop2:
+e428 | 20 35 e6       | 	jsr	R0		; Read the bit and check for '0'.
+e42b | b0 08          | 	bcs	T0error		; Check for an error.
+e42d | 20 d7 e5       | 	jsr	INCBIT		; Move on to the next bit of memory.
+e430 | 90 f6          | 	bcc	T0loop2		; Keep looping until done...
+e432 |                | 
+e432 |                | 	; ====================
+e432 |                | 	; Test 0 completed OK.
+e432 |                | 	; ====================
+e432 |                | 	
+e432 | 4c 38 e4       | 	jmp	TEST1		; Next test...
+e435 |                | 	
+e435 |                | T0error:
+e435 |                | 
+e435 | 4c 73 e5       | 	jmp	DRAMERROR	; Abandon the testing...
+e438 |                | 	
+e438 |                | 	; =======
+e438 |                | 	; Test 1.
+e438 |                | 	; =======
+e438 |                | 
+e438 |                | TEST1:
+e438 |                | 
+e438 | e6 10          | 	inc	TESTNO		; Move on to test number 1 - set all of memory to 1 and test for 1 (i.e.
+e43a |                | 				; test for a stuck '0').
+e43a | a5 10          | 	lda	TESTNO		; DEBUG
+e43c | 20 90 e6       | 	jsr	OUTHEXAL	; DEBUG
+e43f |                | 					
+e43f |                | 	; Write 1's to all of memory...
+e43f |                | 	
+e43f | 20 bd e5       | 	jsr	INIASCEND	; We are going to go up the memory.
+e442 |                | T1loop1:
+e442 | 20 2e e6       | 	jsr	W1		; Write a '1' bit into memory.
+e445 | 20 d7 e5       | 	jsr	INCBIT		; Move on to the next bit of memory.
+e448 | 90 f8          | 	bcc	T1loop1		; Keep looping until done...
+e44a |                | 	
+e44a |                | 	; Verify that 1's are still in all of memory...
+e44a |                | 	 
+e44a | 20 bd e5       | 	jsr	INIASCEND	; We are going to go up the memory.
+e44d |                | T1loop2:
+e44d | 20 3e e6       | 	jsr	R1		; Read the bit and check for '1'.
+e450 | b0 08          | 	bcs	T1error		; Check for an error.
+e452 | 20 d7 e5       | 	jsr	INCBIT		; Move on to the next bit of memory.
+e455 | 90 f6          | 	bcc	T1loop2		; Keep looping until done...
+e457 |                | 
+e457 |                | 	; ====================
+e457 |                | 	; Test 1 completed OK.
+e457 |                | 	; ====================
+e457 |                | 	
+e457 | 4c 5d e4       | 	jmp	TEST2		; Next test...
+e45a |                | 	
+e45a |                | T1error:
+e45a |                | 
+e45a | 4c 73 e5       | 	jmp	DRAMERROR	; Abandon the testing...
+e45d |                | 	
+e45d |                | 	; =======
+e45d |                | 	; Test 2.
+e45d |                | 	; =======
+e45d |                | 
+e45d |                | TEST2:
+e45d |                | 
+e45d | e6 10          | 	inc	TESTNO		; Move on to test 2 - Checkerboard test.
+e45f | a5 10          | 	lda	TESTNO		; DEBUG
+e461 | 20 90 e6       | 	jsr	OUTHEXAL	; DEBUG
+e464 |                | 				
+e464 |                | 	; Write alternate 0's and 1's to all of memory...
+e464 |                | 	
+e464 | 20 bd e5       | 	jsr	INIASCEND	; We are going to go up the memory.
+e467 |                | T2loop1:
+e467 | 20 25 e6       | 	jsr	W0		; Write a '0' bit into memory.
+e46a | 20 d7 e5       | 	jsr	INCBIT		; Move on to the next bit of memory.
+e46d | b0 08          | 	bcs	T2endloop1	; Reached the end of memory.
+e46f | 20 2e e6       | 	jsr	W1		; Write a '1' bit into memory.
+e472 | 20 d7 e5       | 	jsr	INCBIT		; Move on to the next bit of memory.
+e475 | 90 f0          | 	bcc	T2loop1		; Keep looping until done...
+e477 |                | T2endloop1:
+e477 |                | 
+e477 |                | 	; Verify that alternate 0's and 1's are still in all of memory...
+e477 |                | 
+e477 | 20 bd e5       | 	jsr	INIASCEND	; We are going to go up the memory.
+e47a |                | T2loop2:
+e47a | 20 35 e6       | 	jsr	R0		; Read the bit and check for '0'.
+e47d | b0 12          | 	bcs	T2error		; Check for an error.
+e47f | 20 d7 e5       | 	jsr	INCBIT		; Move on to the next bit of memory.
+e482 | b0 0a          | 	bcs	T2endloop2	; Reached the end of memory.
+e484 | 20 3e e6       | 	jsr	R1		; Read the bit and check for '1'.
+e487 | b0 08          | 	bcs	T2error		; Check for an error.
+e489 | 20 d7 e5       | 	jsr	INCBIT		; Move on to the next bit of memory.	
+e48c | 90 ec          | 	bcc	T2loop2		; Keep looping until done...
+e48e |                | T2endloop2:
+e48e |                | 
+e48e |                | 	; ====================
+e48e |                | 	; Test 2 completed OK.
+e48e |                | 	; ====================
+e48e |                | 	
+e48e | 4c 94 e4       | 	jmp	TEST3		; Next test...
+e491 |                | 	
+e491 |                | T2error:
+e491 |                | 
+e491 | 4c 73 e5       | 	jmp	DRAMERROR	; Abandon the testing...
+e494 |                | 	
+e494 |                | 	; =======
+e494 |                | 	; Test 3.
+e494 |                | 	; =======
+e494 |                | 	
+e494 |                | TEST3:
+e494 |                | 
+e494 | e6 10          | 	inc	TESTNO		; Move on to test 3 - MARCH C.
+e496 | a5 10          | 	lda	TESTNO		; DEBUG
+e498 | 20 90 e6       | 	jsr	OUTHEXAL	; DEBUG
+e49b |                | 		
+e49b | a9 00          | 	lda	#0		; Reset the test sequence indicator (for error/diagnostic reporting purposes) - 0.
+e49d | 85 15          | 	sta	SEQ
+e49f | a5 15          | 	lda	SEQ		; DEBUG
+e4a1 | 20 90 e6       | 	jsr	OUTHEXAL	; DEBUG
+e4a4 |                | 			
+e4a4 |                | 	; /\(w0); /\(r0,w1); /\(r1,w0);
+e4a4 |                | 	; /\(r0); \/(r0,w1); \/(r1,w0); /\(r0);
+e4a4 |                | 
+e4a4 |                | 	; /\(w0);
+e4a4 |                | 	;	
+e4a4 | 20 bd e5       | 	jsr	INIASCEND	; We are going to go up the memory.
+e4a7 |                | T3loop1:
+e4a7 | 20 25 e6       | 	jsr	W0		; Write a '0' bit into memory.
+e4aa | 20 d7 e5       | 	jsr	INCBIT		; Move on to the next bit of memory.
+e4ad | 90 f8          | 	bcc	T3loop1		; Keep looping until done...
+e4af |                | 	
+e4af | e6 15          | 	inc	SEQ		; Move the test sequence indicator on (for error/diagnostic reporting purposes) - 1.
+e4b1 | a5 15          | 	lda	SEQ		; DEBUG
+e4b3 | 20 90 e6       | 	jsr	OUTHEXAL	; DEBUG
+e4b6 |                | 	
+e4b6 |                | 	; /\(r0,w1);
+e4b6 |                | 	;
+e4b6 | 20 bd e5       | 	jsr	INIASCEND	; We are going to go up the memory.
+e4b9 |                | T3loop2:
+e4b9 | 20 35 e6       | 	jsr	R0		; Read the bit and check for '0'.
+e4bc | b0 78          | 	bcs	T3error		; Check for an error.
+e4be | 20 2e e6       | 	jsr	W1		; Write a '1' bit into memory.
+e4c1 | 20 d7 e5       | 	jsr	INCBIT		; Move on to the next bit of memory.
+e4c4 | 90 f3          | 	bcc	T3loop2		; Keep looping until done...
+e4c6 |                | 
+e4c6 | e6 15          | 	inc	SEQ		; Move the test sequence indicator on (for error/diagnostic reporting purposes) - 2.
+e4c8 | a5 15          | 	lda	SEQ		; DEBUG
+e4ca | 20 90 e6       | 	jsr	OUTHEXAL	; DEBUG
+e4cd |                | 	
+e4cd |                | 	; /\(r1,w0);
+e4cd |                | 	;
+e4cd | 20 bd e5       | 	jsr	INIASCEND	; We are going to go up the memory.
+e4d0 |                | T3loop3:
+e4d0 | 20 3e e6       | 	jsr	R1		; Read the bit and check for '1'.
+e4d3 | b0 61          | 	bcs	T3error		; Check for an error.
+e4d5 | 20 25 e6       | 	jsr	W0		; Write a '0' bit into memory.
+e4d8 | 20 d7 e5       | 	jsr	INCBIT		; Move on to the next bit of memory.
+e4db | 90 f3          | 	bcc	T3loop3		; Keep looping until done...
+e4dd |                | 
+e4dd | e6 15          | 	inc	SEQ		; Move the test sequence indicator on (for error/diagnostic reporting purposes) - 3.
+e4df | a5 15          | 	lda	SEQ		; DEBUG
+e4e1 | 20 90 e6       | 	jsr	OUTHEXAL	; DEBUG
+e4e4 |                | 	
+e4e4 |                | 	; /\(r0);
+e4e4 |                | 	;
+e4e4 | 20 bd e5       | 	jsr	INIASCEND	; We are going to go up the memory.
+e4e7 |                | T3loop4:
+e4e7 | 20 35 e6       | 	jsr	R0		; Read the bit and check for '0'.
+e4ea | b0 4a          | 	bcs	T3error		; Check for an error.
+e4ec | 20 d7 e5       | 	jsr	INCBIT		; Move on to the next bit of memory.
+e4ef | 90 f6          | 	bcc	T3loop4		; Keep looping until done...
+e4f1 |                | 	
+e4f1 | e6 15          | 	inc	SEQ		; Move the test sequence indicator on (for error/diagnostic reporting purposes) - 4.
+e4f3 | a5 15          | 	lda	SEQ		; DEBUG
+e4f5 | 20 90 e6       | 	jsr	OUTHEXAL	; DEBUG
+e4f8 |                | 	
+e4f8 |                | 	; \/(r0,w1);
+e4f8 |                | 	;
+e4f8 | 20 ca e5       | 	jsr	INIDESCEND	; We are going to go down the memory.
+e4fb |                | T3loop5:
+e4fb | 20 35 e6       | 	jsr	R0		; Read the bit and check for '0'.
+e4fe | b0 36          | 	bcs	T3error		; Check for an error.
+e500 | 20 2e e6       | 	jsr	W1		; Write a '1' bit into memory.
+e503 | 20 fc e5       | 	jsr	DECBIT		; Move on to the previous bit of memory.
+e506 | 90 f3          | 	bcc	T3loop5		; Keep looping until done...
+e508 |                | 
+e508 | e6 15          | 	inc	SEQ		; Move the test sequence indicator on (for error/diagnostic reporting purposes) - 5.
+e50a | a5 15          | 	lda	SEQ		; DEBUG
+e50c | 20 90 e6       | 	jsr	OUTHEXAL	; DEBUG
+e50f |                | 	
+e50f |                | 	; \/(r1,w0);
+e50f |                | 	;
+e50f | 20 ca e5       | 	jsr	INIDESCEND	; We are going to go down the memory.
+e512 |                | T3loop6:
+e512 | 20 3e e6       | 	jsr	R1		; Read the bit and check for '1'.
+e515 | b0 1f          | 	bcs	T3error		; Check for an error.
+e517 | 20 25 e6       | 	jsr	W0		; Write a '0' bit into memory.
+e51a | 20 fc e5       | 	jsr	DECBIT		; Move on to the previous bit of memory.
+e51d | 90 f3          | 	bcc	T3loop6		; Keep looping until done...
+e51f |                | 
+e51f | e6 15          | 	inc	SEQ		; Move the test sequence indicator on (for error/diagnostic reporting purposes) - 6.
+e521 | a5 15          | 	lda	SEQ		; DEBUG
+e523 | 20 90 e6       | 	jsr	OUTHEXAL	; DEBUG
+e526 |                | 	
+e526 |                | 	; /\(r0);
+e526 |                | 	;
+e526 | 20 bd e5       | 	jsr	INIASCEND	; We are going to go up the memory.
+e529 |                | T3loop7:
+e529 | 20 35 e6       | 	jsr	R0		; Read the bit and check for '0'.
+e52c | b0 08          | 	bcs	T3error		; Check for an error.
+e52e | 20 d7 e5       | 	jsr	INCBIT		; Move on to the next bit of memory.
+e531 | 90 f6          | 	bcc	T3loop7		; Keep looping until done...
+e533 |                | 
+e533 |                | 	; ====================
+e533 |                | 	; Test 3 completed OK.
+e533 |                | 	; ====================
+e533 |                | 
+e533 | 4c 39 e5       | 	jmp	DRAMOK		; All done...
+e536 |                | 	
+e536 |                | T3error:
+e536 |                | 
+e536 | 4c 73 e5       | 	jmp	DRAMERROR	; Abandon the testing...
+e539 |                | 	
+e539 |                | DRAMOK:
+e539 |                | 
+e539 |                | 	; Output a PASS message to the screen...
+e539 |                | 	; ======================================
+e539 |                | 	;
+e539 | a2 02          | 	ldx	#DRAMPASS_LEN	; Length of character string.
+e53b | a0 00          | 	ldy	#0		; Index to string.
+e53d |                | DRAMPASSa:
+e53d | b9 be e6       | 	lda	DRAMPASS,y	; Pickup the first/next character
+e540 | 20 47 e6       | 	jsr	OUTCHAR		; Display to screen.
+e543 | c8             | 	iny			; Index to the next character.
+e544 | ca             | 	dex			; One less character to output.
+e545 | d0 f6          | 	bne	DRAMPASSa	; Loop until all done.	
+e547 |                | 
+e547 |                | 	; Increment the PASS counter.
+e547 |                | 	;
+e547 | 18             | 	clc
+e548 | a9 01          | 	lda	#1
+e54a | 65 11          | 	adc	PASSLL
+e54c | 85 11          | 	sta	PASSLL
+e54e | a9 00          | 	lda	#0
+e550 | 65 12          | 	adc	PASSMM
+e552 | 85 12          | 	sta	PASSMM
+e554 | a9 00          | 	lda	#0
+e556 | 65 13          | 	adc	PASSHH
+e558 | 85 13          | 	sta	PASSHH
+e55a |                | 	
+e55a |                | 	; Output the PASS counter.
+e55a |                | 	;
+e55a | a5 13          | 	lda	PASSHH
+e55c | 20 71 e6       | 	jsr	OUTHEXA
+e55f | a5 12          | 	lda	PASSMM
+e561 | 20 71 e6       | 	jsr	OUTHEXA
+e564 | a5 11          | 	lda	PASSLL
+e566 | 20 71 e6       | 	jsr	OUTHEXA
+e569 | a9 2e          | 	lda	#dot		; PETSCII '.'.
+e56b | 20 47 e6       | 	jsr	OUTCHAR
+e56e |                | 
+e56e | 4c f3 e3       | 	jmp	DRAMLOOP	; Keep repeating (for now)...
+e571 |                | 	
+e571 | 18             | 	clc			; NO ERROR OCCURRED!!!
+e572 |                | 		
+e572 | 60             | 	rts			; Return back to caller.
+e573 |                | 
+e573 |                | DRAMERROR:
+e573 |                | 
+e573 |                | 	; Output a FAIL message to the screen...
+e573 |                | 	; ======================================
+e573 |                | 	;
+e573 | a9 40          | 	lda	#$40		; VDU screen low address.
+e575 | 85 03          | 	sta	VDULL		; "   "   "   "   "   "
+e577 | a9 81          | 	lda	#$81		; VDU screen high address.
+e579 | 85 04          | 	sta	VDUHH		; "   "   "   "   "   "
+e57b |                | 
+e57b | a2 02          | 	ldx	#DRAMFAIL_LEN	; Length of character string.
+e57d | a0 00          | 	ldy	#0		; Index to string.
+e57f |                | DRAMFAILa:
+e57f | b9 c0 e6       | 	lda	DRAMFAIL,y	; Pickup the first/next character
+e582 | 20 47 e6       | 	jsr	OUTCHAR		; Display to screen.
+e585 | c8             | 	iny			; Index to the next character.
+e586 | ca             | 	dex			; One less character to output.
+e587 | d0 f6          | 	bne	DRAMFAILa	; Loop until all done.	
+e589 |                | 	
+e589 | a5 10          | 	lda	TESTNO
+e58b | 20 90 e6       | 	jsr	OUTHEXAL
+e58e | 20 69 e6       | 	jsr	OUTSPACE
+e591 |                | 	
+e591 | a5 15          | 	lda	SEQ
+e593 | 20 90 e6       | 	jsr	OUTHEXAL
+e596 | 20 69 e6       | 	jsr	OUTSPACE
+e599 |                | 	
+e599 | a5 0e          | 	lda	ADDRHH
+e59b | 20 71 e6       | 	jsr	OUTHEXA
+e59e | a5 0d          | 	lda	ADDRLL
+e5a0 | 20 71 e6       | 	jsr	OUTHEXA
+e5a3 | 20 69 e6       | 	jsr	OUTSPACE
+e5a6 |                | 	
+e5a6 | a5 0f          | 	lda	BITMASK
+e5a8 | 20 71 e6       | 	jsr	OUTHEXA
+e5ab | 20 69 e6       | 	jsr	OUTSPACE
+e5ae |                | 	
+e5ae | a9 00          | 	lda	#0		; Y must be 0!
+e5b0 | a8             | 	tay			; -- ditto --
+e5b1 | b1 0d          | 	lda	(ADDRLL),y
+e5b3 | 20 71 e6       | 	jsr	OUTHEXA
+e5b6 | a9 21          | 	lda	#$21		; PETSCII '!'
+e5b8 | 20 47 e6       | 	jsr	OUTCHAR
+e5bb |                | 	
+e5bb | 38             | 	sec			; AN ERROR OCCURRED!!!
+e5bc |                | 	
+e5bc | 60             | 	rts			; Return back to caller.
+e5bd |                | 
+e5bd |                | 	; =================================================================================
+e5bd |                | 
+e5bd |                | INIASCEND:
+e5bd |                | 
+e5bd |                | 	; Start at the beginning of the DRAM block to test and work upwards.
+e5bd |                | 	
+e5bd | a5 09          | 	lda	STARTLL		; Start address high byte
+e5bf | 85 0d          | 	sta	ADDRLL
+e5c1 |                | 	
+e5c1 | a5 0a          | 	lda	STARTHH		; Start address low byte
+e5c3 | 85 0e          | 	sta	ADDRHH
+e5c5 |                | 	
+e5c5 | a9 01          | 	lda	#$01		; First bit of the byte.
+e5c7 | 85 0f          | 	sta	BITMASK
+e5c9 |                | 	
+e5c9 | 60             | 	rts			; Return back to caller.
+e5ca |                | 
+e5ca |                | INIDESCEND:
+e5ca |                | 
+e5ca |                | 	; Start at the end of the DRAM block to test and work downwards.
+e5ca |                | 	
+e5ca | a5 0b          | 	lda	ENDLL		; End address high byte
+e5cc | 85 0d          | 	sta	ADDRLL
+e5ce |                | 	
+e5ce | a5 0c          | 	lda	ENDHH		; End address low byte
+e5d0 | 85 0e          | 	sta	ADDRHH
+e5d2 |                | 	
+e5d2 | a9 80          | 	lda	#$80		; Last bit of the byte.
+e5d4 | 85 0f          | 	sta	BITMASK
+e5d6 |                | 		
+e5d6 | 60             | 	rts			; Return back to caller.
+e5d7 |                | 
+e5d7 |                | INCBIT:
+e5d7 |                | 
+e5d7 | 18             | 	clc
+e5d8 |                | 
+e5d8 | a5 0d          | 	lda	ADDRLL
+e5da | c5 0b          | 	cmp	ENDLL
+e5dc | d0 0e          | 	bne	INCBITa
+e5de | a5 0e          | 	lda	ADDRHH
+e5e0 | c5 0c          | 	cmp	ENDHH
+e5e2 | d0 08          | 	bne	INCBITa
+e5e4 | a5 0f          | 	lda	BITMASK
+e5e6 | c9 80          | 	cmp	#$80
+e5e8 | d0 02          | 	bne	INCBITa
+e5ea | 38             | 	sec
+e5eb | 60             | 	rts			; Return back to caller.
+e5ec |                | 
+e5ec |                | INCBITa:
+e5ec |                | 	
+e5ec | 06 0f          | 	asl	BITMASK
+e5ee | 90 0a          | 	bcc	INCBITb
+e5f0 | a9 01          | 	lda	#$01
+e5f2 | 85 0f          | 	sta	BITMASK
+e5f4 | e6 0d          | 	inc	ADDRLL
+e5f6 | d0 02          | 	bne	INCBITb
+e5f8 | e6 0e          | 	inc	ADDRHH
+e5fa |                | 
+e5fa |                | INCBITb:
+e5fa |                | 
+e5fa | 18             | 	clc
+e5fb | 60             | 	rts			; Return back to caller.
+e5fc |                | 
+e5fc |                | DECBIT:
+e5fc |                | 
+e5fc | 18             | 	clc
+e5fd |                | 
+e5fd | a5 0d          | 	lda	ADDRLL
+e5ff | c5 09          | 	cmp	STARTLL
+e601 | d0 0e          | 	bne	DECBITa
+e603 | a5 0e          | 	lda	ADDRHH
+e605 | c5 0a          | 	cmp	STARTHH
+e607 | d0 08          | 	bne	DECBITa
+e609 | a5 0f          | 	lda	BITMASK
+e60b | c9 01          | 	cmp	#$01
+e60d | d0 02          | 	bne	DECBITa
+e60f | 38             | 	sec
+e610 | 60             | 	rts			; Return back to caller.
+e611 |                | 
+e611 |                | DECBITa:
+e611 |                | 
+e611 | 46 0f          | 	lsr	BITMASK
+e613 | 90 0e          | 	bcc	DECBITb
+e615 | a9 80          | 	lda	#$80
+e617 | 85 0f          | 	sta	BITMASK
+e619 | c6 0d          | 	dec	ADDRLL
+e61b | a9 ff          | 	lda	#$FF
+e61d | c5 0d          | 	cmp	ADDRLL
+e61f | d0 02          | 	bne	DECBITb
+e621 | c6 0e          | 	dec	ADDRHH
+e623 |                | 			
+e623 |                | DECBITb:
+e623 |                | 
+e623 | 18             | 	clc
+e624 | 60             | 	rts			; Return back to caller.
+e625 |                | 
+e625 |                | W0:
+e625 |                | 
+e625 | a5 0f          | 	lda	BITMASK
+e627 | 49 ff          | 	eor	#$FF
+e629 | 31 0d          | 	and	(ADDRLL),y
+e62b | 91 0d          | 	sta	(ADDRLL),y
+e62d |                | 	
+e62d | 60             | 	rts			; Return back to caller.
+e62e |                | 
+e62e |                | W1:
+e62e |                | 
+e62e | a5 0f          | 	lda	BITMASK
+e630 | 11 0d          | 	ora	(ADDRLL),y
+e632 | 91 0d          | 	sta	(ADDRLL),y
+e634 |                | 
+e634 | 60             | 	rts			; Return back to caller.
+e635 |                | 
+e635 |                | R0:
+e635 |                | 
+e635 | 18             | 	clc
+e636 | a5 0f          | 	lda	BITMASK
+e638 | 31 0d          | 	and	(ADDRLL),y
+e63a | f0 01          | 	beq	R0a
+e63c | 38             | 	sec
+e63d |                | R0a:
+e63d |                | 
+e63d | 60             | 	rts			; Return back to caller.
+e63e |                | 
+e63e |                | R1:
+e63e |                | 
+e63e | 18             | 	clc
+e63f | a5 0f          | 	lda	BITMASK
+e641 | 31 0d          | 	and	(ADDRLL),y
+e643 | d0 01          | 	bne	R1a
+e645 | 38             | 	sec
+e646 |                | R1a:
+e646 |                | 
+e646 | 60             | 	rts			; Return back to caller.
+e647 |                | 
+e647 |                | 	; =================================================================================
+e647 |                | 	
+e647 |                | ; *****************
+e647 |                | ; ***           ***
+e647 |                | ; ***  OUTCHAR  ***
+e647 |                | ; ***           ***
+e647 |                | ; *****************
+e647 |                | 
+e647 |                | 	; ********************************************************************************************
+e647 |                | 	; ***                                                                                      ***
+e647 |                | 	; ***  Output the PETSCII character in register 'A' to the current location of the screen  ***
+e647 |                | 	; ***                       and advance the screen pointer.                                ***
+e647 |                | 	; ***                                                                                      ***
+e647 |                | 	; ***       No registers are harmed during the execution of this subroutine!               ***
+e647 |                | 	; ***                                                                                      ***
+e647 |                | 	; ********************************************************************************************
+e647 |                | 
+e647 |                | OUTCHAR:
+e647 |                | 
+e647 |                | 	; Store the registers onto the stack.
+e647 |                | 	;
+e647 | 08             | 	php			; Save the flags onto the stack.
+e648 | 48             | 	pha			; Save register 'A' onto the stack.
+e649 | 85 05          | 	sta	TEMPA		; Preserve the value of register 'A' for later.
+e64b | 8a             | 	txa			; Store register 'X' onto the stack.
+e64c | 48             | 	pha			; "   "   "   "   "   "   "   "   "
+e64d | 98             | 	tya			; Store register 'Y' onto the stack.
+e64e | 48             | 	pha			; "   "   "   "   "   "   "   "   "
+e64f | a5 05          | 	lda	TEMPA		; Recover the character to be output to the screen.
+e651 |                | 	
+e651 | a0 00          | 	ldy	#0		; Use register 'Y' as a 'dummy' index.
+e653 | 91 03          | 	sta	(VDULL),y	; Store the character in 'A' to the screen.
+e655 |                | 	
+e655 |                | 	; Move the screen pointer on.
+e655 |                | 	;
+e655 | 18             | 	clc			; No carry
+e656 | a9 01          | 	lda	#1		; + 1
+e658 | 65 03          | 	adc	VDULL		; Low address.
+e65a | 85 03          | 	sta	VDULL		; Low address.
+e65c | a9 00          | 	lda	#0		; Just add any carry to the high address.
+e65e | 65 04          | 	adc	VDUHH		; High address.
+e660 | 85 04          | 	sta	VDUHH		; High address.
+e662 |                | 	
+e662 |                | 	; Recover the registers from the stack.
+e662 |                | 	;
+e662 | 68             | 	pla			; Y register.
+e663 | a8             | 	tay			; "   "   "
+e664 | 68             | 	pla			; X register.
+e665 | aa             | 	tax			; "   "   "
+e666 | 68             | 	pla			; 'A' register.
+e667 | 28             | 	plp			; Flag register.
+e668 |                | 	
+e668 |                | 	; Return to caller.
+e668 |                | 	;
+e668 | 60             | 	rts			; Bye bye.
+e669 |                | 
+e669 |                | 	; =================================================================================
+e669 |                | 	
+e669 |                | ; ******************
+e669 |                | ; ***            ***
+e669 |                | ; ***  OUTSPACE  ***
+e669 |                | ; ***            ***
+e669 |                | ; ******************
+e669 |                | 
+e669 |                | OUTSPACE:
+e669 |                | 
+e669 | 48             | 	pha			; Save register 'A' onto the stack.
+e66a |                | 	
+e66a | a9 20          | 	lda	#spc		; PETSCII ' '.
+e66c | 20 47 e6       | 	jsr	OUTCHAR		; And display it.
+e66f |                | 	
+e66f | 68             | 	pla			; Recover register 'A' from the stack.
+e670 |                | 	
+e670 |                | 	; Return to caller.
+e670 |                | 	;
+e670 | 60             | 	rts			; Bye bye.
+e671 |                | 
+e671 |                | 	; =================================================================================
+e671 |                | 	
+e671 |                | ; *****************
+e671 |                | ; ***           ***
+e671 |                | ; ***  OUTHEXA  ***
+e671 |                | ; ***           ***
+e671 |                | ; *****************
+e671 |                | 
+e671 |                | OUTHEXA:
+e671 |                | 
+e671 |                | 	; Output the high nibble of register 'A' in hexadecimal first.
+e671 |                | 	;
+e671 | 20 78 e6       | 	jsr	OUTHEXAH
+e674 |                | 	
+e674 |                | 	; Followed by the low nibble of register 'A' in hexadecimal second.
+e674 |                | 	;
+e674 | 20 90 e6       | 	jsr	OUTHEXAL
+e677 |                | 	
+e677 |                | 	; Return to caller.
+e677 |                | 	;
+e677 | 60             | 	rts			; Bye bye.
+e678 |                | 
+e678 |                | 	; =================================================================================
+e678 |                | 	
+e678 |                | ; ******************
+e678 |                | ; ***            ***
+e678 |                | ; ***  OUTHEXAH  ***
+e678 |                | ; ***            ***
+e678 |                | ; ******************
+e678 |                | 
+e678 |                | OUTHEXAH:
+e678 |                | 
+e678 |                | 	; Store the registers onto the stack.
+e678 |                | 	;
+e678 | 08             | 	php			; Save the flags onto the stack.
+e679 | 48             | 	pha			; Save register 'A' onto the stack.
+e67a | 85 05          | 	sta	TEMPA		; Preserve the value of register 'A' for later.
+e67c | 8a             | 	txa			; Store register 'X' onto the stack.
+e67d | 48             | 	pha			; "   "   "   "   "   "   "   "   "
+e67e | 98             | 	tya			; Store register 'Y' onto the stack.
+e67f | 48             | 	pha			; "   "   "   "   "   "   "   "   "
+e680 | a5 05          | 	lda	TEMPA		; Recover the character to be output.
+e682 |                | 
+e682 |                | 	; Move the bits in register 'A' four bits to the right.
+e682 |                | 	;
+e682 | 4a             | 	lsr
+e683 | 4a             | 	lsr
+e684 | 4a             | 	lsr
+e685 | 4a             | 	lsr
+e686 |                | 	
+e686 |                | 	; And display the lower nibble in hexadecimal to the screen.
+e686 |                | 	;
+e686 | 20 90 e6       | 	jsr	OUTHEXAL 
+e689 |                | 	
+e689 |                | 	; Recover the registers from the stack.
+e689 |                | 	;
+e689 | 68             | 	pla			; Y register.
+e68a | a8             | 	tay			; "   "   "
+e68b | 68             | 	pla			; X register.
+e68c | aa             | 	tax			; "   "   "
+e68d | 68             | 	pla			; 'A' register.
+e68e | 28             | 	plp			; Flag register.
+e68f |                | 
+e68f |                | 	; Return to caller.
+e68f |                | 	;
+e68f | 60             | 	rts			; Bye bye.
+e690 |                | 
+e690 |                | 	; =================================================================================
+e690 |                | 	
+e690 |                | ; ******************
+e690 |                | ; ***            ***
+e690 |                | ; ***  OUTHEXAL  ***
+e690 |                | ; ***            ***
+e690 |                | ; ******************
+e690 |                | 
+e690 |                | OUTHEXAL:
+e690 |                | 
+e690 |                | 	; Store the registers onto the stack.
+e690 |                | 	;
+e690 | 08             | 	php			; Save the flags onto the stack.
+e691 | 48             | 	pha			; Save register 'A' onto the stack.
+e692 | 85 05          | 	sta	TEMPA		; Preserve the value of register 'A' for later.
+e694 | 8a             | 	txa			; Store register 'X' onto the stack.
+e695 | 48             | 	pha			; "   "   "   "   "   "   "   "   "
+e696 | 98             | 	tya			; Store register 'Y' onto the stack.
+e697 | 48             | 	pha			; "   "   "   "   "   "   "   "   "
+e698 | a5 05          | 	lda	TEMPA		; Recover the character to be output.
+e69a |                | 
+e69a |                | 	; Mask off all but the lower 4 bits of register 'A'.
+e69a |                | 	;
+e69a | 29 0f          | 	and	#$0F		; 00001111.
+e69c |                | 	
+e69c |                | 	; Use 'Y' as the index register to lookup the corresponding PETSCII character code.
+e69c |                | 	;
+e69c | a8             | 	tay
+e69d |                | 	
+e69d |                | 	; Index the lookup table using register 'Y'.
+e69d |                | 	;
+e69d | b9 aa e6       | 	lda	HEXLUT,y
+e6a0 |                | 	
+e6a0 |                | 	; Display the character (now in register 'A') on to the screen.
+e6a0 |                | 	;
+e6a0 | 20 47 e6       | 	jsr	OUTCHAR
+e6a3 |                | 
+e6a3 |                | 	; Recover the registers from the stack.
+e6a3 |                | 	;
+e6a3 | 68             | 	pla			; Y register.
+e6a4 | a8             | 	tay			; "   "   "
+e6a5 | 68             | 	pla			; X register.
+e6a6 | aa             | 	tax			; "   "   "
+e6a7 | 68             | 	pla			; 'A' register.
+e6a8 | 28             | 	plp			; Flag register.
+e6a9 |                | 
+e6a9 |                | 	; Return to caller.
+e6a9 |                | 	;
+e6a9 | 60             | 	rts			; Bye bye.
+e6aa |                | 	
+e6aa |                | 	; =================================================================================
+e6aa |                | 	
+e6aa |                | 	; Lookup table to convert a 4-bit hexadecimal code into the corresponding
+e6aa |                | 	; PETSCII character to display on the Commodore PET screen.
+e6aa |                | 	
+e6aa |                | HEXLUT:
+e6aa | 30             | 	.byte	$30		; '0'.
+e6ab | 31             | 	.byte	$31		; '1'.
+e6ac | 32             | 	.byte	$32		; '2'.
+e6ad | 33             | 	.byte	$33		; '3'.
+e6ae | 34             | 	.byte	$34		; '4'.
+e6af | 35             | 	.byte	$35		; '5'.
+e6b0 | 36             | 	.byte	$36		; '6'.
+e6b1 | 37             | 	.byte	$37		; '7'.
+e6b2 | 38             | 	.byte	$38		; '8'.
+e6b3 | 39             | 	.byte	$39		; '9'.
+e6b4 | 01             | 	.byte	$01		; 'A'.
+e6b5 | 02             | 	.byte	$02		; 'B'.
+e6b6 | 03             | 	.byte	$03		; 'C'.
+e6b7 | 04             | 	.byte	$04		; 'D'.
+e6b8 | 05             | 	.byte	$05		; 'E'.
+e6b9 | 06             | 	.byte	$06		; 'F'.
+e6ba |                | 	
+e6ba |                | 	; =================================================================================
+e6ba |                | 	
+e6ba |                | ROMMSG:
+e6ba |                | 	.byte scr("r")
+e6bb |                | ROMMSG_LEN	.equ * - ROMMSG	
+e6bb |                | 	
+e6bb |                | 	; =================================================================================
+e6bb |                | 	
+e6bb |                | KBDMSG:
+e6bb |                | 	.byte scr("k")
+e6bc |                | KBDMSG_LEN: .equ * - KBDMSG
+e6bc |                | 	
+e6bc |                | 	; =================================================================================
+e6bc |                | 
+e6bc |                | CNTMSG:
+e6bc |                | 	.byte scr("c")
+e6bd |                | CNTMSG_LEN	.equ * - CNTMSG
+e6bd |                | 		
+e6bd |                | 	; =================================================================================
+e6bd |                | 	
+e6bd |                | DRAMMSG:
+e6bd |                | 	.byte scr("K")
+e6be |                | DRAMMSG_LEN	.equ * - DRAMMSG
+e6be |                | 
+e6be |                | 	; =================================================================================
+e6be |                | 	
+e6be |                | DRAMPASS:
+e6be |                | 	.byte scr("OK")
+e6c0 |                | DRAMPASS_LEN	.equ * - DRAMPASS
+e6c0 |                | 
+e6c0 |                | 	; =================================================================================
+e6c0 |                | 	
+e6c0 |                | DRAMFAIL:
+e6c0 |                | 	.byte scr("F ")
+e6c2 |                | DRAMFAIL_LEN	.equ * - DRAMFAIL
+e6c2 |                | 
+e6c2 |                | 	; =================================================================================
+e6c2 |                | 
+e6c2 |                | IEEETEST:
+e6c2 |                | 
+e6c2 | a9 48          | 	lda	#<(vdu0+21*40+0)		; VDU screen low address.
+e6c4 | 85 03          | 	sta	VDULL		; "   "   "   "   "   "
+e6c6 | a9 83          | 	lda	#>(vdu0+21*40+0)		; VDU screen low address.
+e6c8 | 85 04          | 	sta	VDUHH		; "   "   "   "   "   "
+e6ca |                | 
+e6ca | a9 00          | 	lda	#0
+e6cc | 8d 22 e8       | 	sta	pia2 + 2
+e6cf | ad 20 e8       | 	lda	pia2
+e6d2 | 85 05          | 	sta	TEMPA
+e6d4 | a9 ff          | 	lda	#$FF
+e6d6 | 8d 22 e8       | 	sta	pia2 + 2
+e6d9 | ad 20 e8       | 	lda	pia2
+e6dc | 49 ff          | 	eor	#$FF
+e6de | 05 05          | 	ora	TEMPA
+e6e0 | 20 71 e6       | 	jsr	OUTHEXA
+e6e3 |                | 
+e6e3 | a9 0f          | 	lda	#$0F
+e6e5 | 8d 42 e8       | 	sta	$E842
+e6e8 | a9 00          | 	lda	#0
+e6ea | 85 07          | 	sta	CKSUMHH
+e6ec | a9 e8          | 	lda	#$E8
+e6ee | 85 0e          | 	sta	ADDRHH
+e6f0 | a0 00          | 	ldy	#0
+e6f2 | a2 04          | 	ldx	#4
+e6f4 |                | 
+e6f4 |                | IEEE_LOOP:
+e6f4 |                | 
+e6f4 | bd 4a e7       | 	lda	IEEE_W,x
+e6f7 | 85 0d          | 	sta	ADDRLL
+e6f9 | bd 54 e7       | 	lda	IEEE_V0,x
+e6fc | 91 0d          | 	sta	(ADDRLL),y
+e6fe | a0 08          | 	ldy	#8
+e700 |                | IEEE_DLY0:
+e700 | 88             | 	dey
+e701 | d0 fd          | 	bne	IEEE_DLY0
+e703 | bd 4f e7       | 	lda	IEEE_R,x
+e706 | 85 0d          | 	sta	ADDRLL
+e708 | b1 0d          | 	lda	(ADDRLL),y
+e70a | 3d 5e e7       | 	and	IEEE_M,x
+e70d | 85 05          | 	sta	TEMPA
+e70f | bd 4a e7       | 	lda	IEEE_W,x
+e712 | 85 0d          | 	sta	ADDRLL
+e714 | bd 59 e7       | 	lda	IEEE_V1,x
+e717 | 91 0d          | 	sta	(ADDRLL),y
+e719 | a0 08          | 	ldy	#8
+e71b |                | IEEE_DLY1:
+e71b | 88             | 	dey
+e71c | d0 fd          | 	bne	IEEE_DLY1
+e71e | bd 4f e7       | 	lda	IEEE_R,x
+e721 | 85 0d          | 	sta	ADDRLL
+e723 | b1 0d          | 	lda	(ADDRLL),y
+e725 | 3d 5e e7       | 	and	IEEE_M,x
+e728 | 85 02          | 	sta	ROMSIZ
+e72a | a5 05          | 	lda	TEMPA
+e72c | dd 63 e7       | 	cmp	IEEE_E0,x
+e72f | d0 0a          | 	bne	IEEE_BAD
+e731 | a5 02          | 	lda	ROMSIZ
+e733 | dd 68 e7       | 	cmp	IEEE_E1,x
+e736 | d0 03          | 	bne	IEEE_BAD
+e738 | 18             | 	clc
+e739 | 90 01          | 	bcc	IEEE_ROL
+e73b |                | IEEE_BAD:
+e73b | 38             | 	sec
+e73c |                | IEEE_ROL:
+e73c | 26 07          | 	rol	CKSUMHH
+e73e | ca             | 	dex
+e73f | 10 b3          | 	bpl	IEEE_LOOP
+e741 |                | 
+e741 | 8e 40 e8       | 	stx	$E840
+e744 | a5 07          | 	lda	CKSUMHH
+e746 | 20 71 e6       | 	jsr	OUTHEXA
+e749 | 60             | 	rts
+e74a |                | 
+e74a |                | IEEE_W:
+e74a | 11 40 40 23 21 | 	.byte	$11,$40,$40,$23,$21
+e74f |                | IEEE_R:
+e74f | 10 21 40 40 40 | 	.byte	$10,$21,$40,$40,$40
+e754 |                | IEEE_V0:
+e754 | 34 fb ff 34 34 | 	.byte	52,251,255,52,52
+e759 |                | IEEE_V1:
+e759 | 3c ff fd 3c 3c | 	.byte	60,255,253,60,60
+e75e |                | IEEE_M:
+e75e | 40 80 40 80 01 | 	.byte	64,128,64,128,1
+e763 |                | IEEE_E0:
+e763 | 00 80 40 00 00 | 	.byte	0,128,64,0,0
+e768 |                | IEEE_E1:
+e768 | 40 00 00 80 01 | 	.byte	64,0,0,128,1
+e76d |                | 
+e76d |                | 	; =================================================================================
+e76d |                | 
+e76d |                | WARMUP_BOOT:
+e76d |                | 
+e76d |                | 	; Only perform the warmup once. If the VDU test has to retry, restart the VDU
+e76d |                | 	; pattern immediately rather than forcing another delay.
+e76d | a5 08          | 	lda	CNTDOWN
+e76f | c9 42          | 	cmp	#$42
+e771 | d0 03          | 	bne	WARMUP_RUN
+e773 | 4c f2 e7       | 	jmp	WARMUP_REPEAT
+e776 |                | 
+e776 |                | WARMUP_RUN:
+e776 |                | 
+e776 | a9 42          | 	lda	#$42
+e778 | 85 08          | 	sta	CNTDOWN
+e77a |                | 
+e77a |                | 	; Detect whether $8400 is independent VRAM or mirrors back into the first 1K.
+e77a | a9 55          | 	lda	#$55
+e77c | 8d 00 80       | 	sta	vdu0
+e77f | a9 aa          | 	lda	#$AA
+e781 | 8d 00 84       | 	sta	vdu4
+e784 | a0 00          | 	ldy	#0		; Assume 1K / 40 columns.
+e786 | ad 00 80       | 	lda	vdu0
+e789 | c9 55          | 	cmp	#$55
+e78b | d0 09          | 	bne	WARMUP_SCREEN
+e78d | ad 00 84       | 	lda	vdu4
+e790 | c9 aa          | 	cmp	#$AA
+e792 | d0 02          | 	bne	WARMUP_SCREEN
+e794 | a0 01          | 	ldy	#1		; Looks like 2K / 80 columns.
+e796 |                | 
+e796 |                | WARMUP_SCREEN:
+e796 |                | 
+e796 | a2 00          | 	ldx	#0
+e798 | a9 20          | 	lda	#spc
+e79a |                | WARMUP_CLEAR:
+e79a | 9d 00 80       | 	sta	vdu0,x
+e79d | 9d 00 81       | 	sta	vdu1,x
+e7a0 | 9d 00 82       | 	sta	vdu2,x
+e7a3 | 9d 00 83       | 	sta	vdu3,x
+e7a6 | 9d 00 84       | 	sta	vdu4,x
+e7a9 | 9d 00 85       | 	sta	vdu5,x
+e7ac | 9d 00 86       | 	sta	vdu6,x
+e7af | 9d 00 87       | 	sta	vdu7,x
+e7b2 | e8             | 	inx
+e7b3 | d0 e5          | 	bne	WARMUP_CLEAR
+e7b5 |                | 
+e7b5 | a2 00          | 	ldx	#0
+e7b7 |                | WARMUP_DELAY_MSG:
+e7b7 | bd f7 e7       | 	lda	WARMUP_DELAY_MSG_TXT,x
+e7ba | 9d 00 80       | 	sta	vdu0,x
+e7bd | e8             | 	inx
+e7be | e0 07          | 	cpx	#WARMUP_DELAY_MSG_LEN
+e7c0 | d0 f5          | 	bne	WARMUP_DELAY_MSG
+e7c2 |                | 
+e7c2 | c0 00          | 	cpy	#0
+e7c4 | f0 0a          | 	beq	WARMUP_COUNT_INIT
+e7c6 | a9 32          | 	lda	#$32		; '2'.
+e7c8 | 8d 00 80       | 	sta	vdu0
+e7cb | a9 38          | 	lda	#$38		; '8'.
+e7cd | 8d 02 80       | 	sta	vdu0+2
+e7d0 |                | 
+e7d0 |                | WARMUP_COUNT_INIT:
+e7d0 |                | 
+e7d0 | a2 09          | 	ldx	#9
+e7d2 |                | WARMUP_COUNT:
+e7d2 | 8a             | 	txa
+e7d3 | 09 30          | 	ora	#$30
+e7d5 | 8d 07 80       | 	sta	vdu0+7
+e7d8 | 8e fe 87       | 	stx	vdu7+$FE
+e7db |                | 
+e7db | a9 03          | 	lda	#3
+e7dd |                | WARMUP_DELAY_REP:
+e7dd | a2 00          | 	ldx	#0
+e7df | a0 00          | 	ldy	#0
+e7e1 |                | WARMUP_DELAY:
+e7e1 | ca             | 	dex
+e7e2 | d0 fd          | 	bne	WARMUP_DELAY
+e7e4 | 88             | 	dey
+e7e5 | d0 fa          | 	bne	WARMUP_DELAY
+e7e7 | 38             | 	sec
+e7e8 | e9 01          | 	sbc	#1
+e7ea | d0 f1          | 	bne	WARMUP_DELAY_REP
+e7ec |                | 
+e7ec | ae fe 87       | 	ldx	vdu7+$FE
+e7ef | ca             | 	dex
+e7f0 | d0 e0          | 	bne	WARMUP_COUNT
+e7f2 |                | 
+e7f2 |                | WARMUP_REPEAT:
+e7f2 |                | 
+e7f2 | a2 00          | 	ldx	#0
+e7f4 | 4c 50 e0       | 	jmp	more_vduW
+e7f7 |                | 
+e7f7 |                | WARMUP_DELAY_MSG_TXT:
+e7f7 |                | 	.byte scr("1K40 W:")
+e7fe |                | WARMUP_DELAY_MSG_LEN	.equ * - WARMUP_DELAY_MSG_TXT
+e7fe |                | 
+e7fe |                | 		
+e7fe |                | 	; Force binary to be exactly 2k
+e7fe |                | 	.org $E800
+e800 |                | 
+2048 bytes written to "pettester.tmp.bin".

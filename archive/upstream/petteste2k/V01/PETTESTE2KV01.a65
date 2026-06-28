@@ -1,0 +1,579 @@
+
+    ; PETTESTE2KV01.a65
+    ; =================
+    ;
+VERSION EQU $01
+
+    ; This replaces the 2K PET EDIT ROM located at $E000.
+    ;
+    org $E000
+
+    ; Version: 1.0
+    ;   Date : 14th July 2018.
+    ; Author : Dave Roberts. Mainly plagiarised from Eudimorphodon with bits copied from dave_m...
+
+    ; Assemble with https://www.asm80.com
+
+    ; This is the entry vector into the initialisation portion
+    ; of the EDIT ROM. It is called by the kernel ROM ($F000)
+    ; after a small amount of processing (i.e. maskable interrupts
+    ; have been inhibited and the decimal arithmetic flag cleared).
+    ;
+    ; This entry point is CALLED by the kernel ROM - but the 
+    ; page 0 RAM may not be working (so the return address may not 
+    ; actually work). Anyhow - we have no plans of returning anyhow...
+    ;
+    ; Bypass any fixed constants stored in the ROM (e.g. the
+    ; initialisation values for the CRT Controller).
+    ;  
+    jmp	start
+    ;
+    db 'V', VERSION
+    
+    ; Initialisation table for the CRT Controller. One byte for 
+    ; each register (in numeric order starting at register 0).
+    ;
+
+; Table obtained from http://cbm-hackers.2304266.n4.nabble.com/PET-50Hz-editor-ROMS-td4658493.html
+;
+;           PET/CBM PET/CBM PET/CBM  8296D   NTSC     PAL 
+;            60 Hz   50 Hz   50 Hz   50 HZ   60 Hz   50 Hz 
+;
+; Business 
+; ========
+;
+; reg.  0     49      49      50      48      63      63 
+; reg.  1     40      40      40      40      40      40 
+; reg.  2     41      41      40      44      49      50 
+; reg.  3     15      15       8       8      15       8 
+; reg.  4     32      39      38      32      31      32 
+; reg.  5      3       0       2       9       7      16 
+; reg.  6     25      25      25      25      25      25 
+; reg.  7     29      32      32      29      29      29 
+; reg.  8      0       0       0       0       0       0 
+; reg.  9      9       9       9       9       7       8 
+; reg. 10      0       0       0       0       0       0 
+; reg. 11      0       0       0       0       0       0 
+; reg. 12     16      16      16      16      16      16 
+; reg. 13      0       0       0       0       0       0 
+; reg. 14      0       0       0       0       0       0 
+; reg. 15      0       0       0       0       0       0 
+; reg. 16      0       0       0       0       0       0 
+; reg. 17      0       0       0       0       0       0 
+;
+; Graphic 
+; =======
+;
+; reg.  0     49      49      50      48      63      63 
+; reg.  1     40      40      40      40      40      40 
+; reg.  2     41      41      40      44      49      50 
+; reg.  3     15      15       8       8      15       8 
+; reg.  4     40      49      48      41      31      36 
+; reg.  5      5       0       0       3       7      17 
+; reg.  6     25      25      25      25      25      25 
+; reg.  7     33      37      37      34      29      32 
+; reg.  8      0       0       0       0       0       0 
+; reg.  9      7       7       7       7       7       7 
+; reg. 10      0       0       0       0       0       0 
+; reg. 11      0       0       0       0       0       0 
+; reg. 12     16      16      16      16      16      16 
+; reg. 13      0       0       0       0       0       0 
+; reg. 14      0       0       0       0       0       0 
+; reg. 15      0       0       0       0       0       0 
+; reg. 16      0       0       0       0       0       0 
+; reg. 17      0       0       0       0       0       0 
+
+CRTC_INIT:
+
+    ; PET/CBM 60Hz Business.
+    ; ======================
+    ;
+    db 49	; Register 0.
+    db 40	; Register 1.
+    db 41	; Register 2.
+    db 15	; Register 3.
+    db 32	; Register 4.
+    db 	3	; Register 5.
+    db 25	; Register 6.
+    db 29	; Register 7.
+    db 	0	; Register 8.
+    db 	9	; Register 9.
+    db 	0	; Register 10.
+    db 	0	; Register 11.
+    db 16	; Register 12.
+    db 	0	; Register 13.
+    db 	0	; Register 14.
+    db 	0	; Register 15.
+    db 	0	; Register 16.
+    db 	0	; Register 17.
+
+    ; ******************
+    ; ***            ***
+    ; ***  EQUATES.  ***
+    ; ***            ***
+    ; ******************
+
+    ; DELAY parameters. 
+    ; =================
+
+dlyx equ $00		; Inner delay counter.
+dlyy equ $00		; Outer delay counter.
+
+    ; VDU memory.
+    ; ===========
+
+vdu0 equ $8000		; Screen block 0.
+vdu1 equ $8100		; Screen block 1.
+vdu2 equ $8200		; Screen block 2.
+vdu3 equ $8300		; Screen block 3.
+
+    ; Low RAM memory.
+    ; ===============
+
+mem0 equ $0000		; Memory block 0.
+mem1 equ $0100		; Memory block 1.
+mem2 equ $0200		; Memory block 2.
+mem3 equ $0300		; Memory block 3.
+
+    ; PETSCII character codes.
+    ; ========================
+
+none equ $0E		; PETSCII 'N' character code.
+bad1 equ $02		; PETSCII 'B' character code.
+gud1 equ $07		; PETSCII 'G' character code.
+bad2 equ $42		; PETSCII 'b' character code.
+gud2 equ $47		; PETSCII 'g' character code.
+spc  equ $20		; PETSCII ' ' character code.
+
+    ; Memory test values.
+    ; ===================
+
+tst1 equ $55		; Memory test value 1.		
+tst2 equ $AA		; Memory test value 2.
+
+    ; CRT Controller addresses.
+    ; =========================
+
+crtca equ $E880		; CRT Controller address register.
+crtcd equ $E881		; CRT Controller data    register.
+
+    ; PIA #1 - DIAG bit equates.
+    ; ==========================
+
+sensepia equ $E810
+diagbit  equ $80
+
+    ; ***************************************************
+    ; ***                                             ***
+    ; ***  THIS IS THE REAL ENTRY POINT OF THE TEST.  ***
+    ; ***                                             ***
+    ; ***************************************************
+
+start:
+
+    ; Initialise the CRTC (if it exists).
+    ; ===================================
+    
+    ldx #0		; Start with CRT Controller register 0.
+more_crtc:
+    lda CRTC_INIT, x	; Pick up the initialisation value for this register.
+    stx crtca		; Tell the CRT Controller which register we are going to initialise.
+    sta crtcd		; Initialisation value for the register just defined.
+    inx			; Index the next CRT Controller register.
+    cpx #12h		; Have we finished initialising the CRT Controller?
+    bne more_crtc	; If not, skip back and initialise more registers.
+    jmp again		; Go do the testing...
+	
+    ; The CRT Controller should be now initialised and displaying random rubbish 
+    ; on the screen! Of course, the CRT itself may need time to 'warm up' before
+    ; this rubbish can be seen!
+
+; Original comments:   
+; 
+; This is a cruddy little ROM-able test program for a non-CRTC
+; Commodore PET. It's designed to substitute for the F000/F800 Kernel ROM.
+;
+; Written by Eudimorphodon, 2011, Revised 2012	
+;
+; Hacked by daver2, 2018. Now designed to substitute for the E000 Edit ROM.
+; Ignore any comments to the contrary...
+;
+
+again:
+
+    ; **************************************************************
+    ; ***                                                        ***
+    ; ***  Initialise the entire screen (1K) to the letter 'N'.  ***
+    ; ***                                                        ***
+    ; **************************************************************
+
+    lda #none		; Screen initialisation character 'N'.
+    ldx #0		; Index = 0.
+
+dumpscreen:	
+    sta vdu0, x		; Block 0 of screen.
+    sta vdu1, x		; Block 1 of screen.
+    sta vdu2, x		; Block 2 of screen.
+    sta vdu3, x		; Block 3 of screen.
+    inx			; Move on to next character cell in the screen block(s).
+    bne dumpscreen	; Have we reached the end? If not, keep looping until we have.
+
+    ; *******************************************************************
+    ; ***                                                             ***
+    ; ***  Initialise the first 1K of memory to 85 = 55h = 01010101.  ***
+    ; ***                                                             ***
+    ; *******************************************************************
+
+    ; Register A contains the value to write into memory. A value of 
+    ; 85 (decimal) is used which equates to binary 01010101 (i.e. alternating
+    ; 1's and 0's).
+    ;
+    ; The value in register A is written into 4 blocks of memory starting at
+    ; address $0000. 
+
+    lda #tst1		; Value to write into memory blocks (01010101).
+    ldx #0		; Block index.
+	
+memwrite85:
+    sta mem0, x		; Block 0 of memory.
+    sta mem1, x		; Block 1 of memory.
+    sta mem2, x		; Block 2 of memory.
+    sta mem3, x		; Block 3 of memory.
+    inx			; Move on to the next byte in the memory block.
+    bne memwrite85	; Have we reached the end? If not, keep looping until we have.
+
+    ; *****************************************************
+    ; ***                                               ***
+    ; ***  Test memory block 0 for the value we wrote.  ***
+    ; ***                                               ***
+    ; *****************************************************
+
+    ldx #0		; Memory block index. X should be 0 anyhow at this point...
+	
+memread850:
+    ldy #gud1		; PETSCII character 'G' (standing for Good). Default memory status.
+    lda mem0, x		; Pick up the value from memory block 0.
+    cmp #tst1		; Is the value what we expect?
+    beq memokay850	; YES - OK
+    ; Memory value was BAD.
+    ldy #bad1		; PETSCII character 'B' (standing for Bad). Overwrite the default.
+memokay850:
+    tya			; Recover the status character.
+    sta vdu0, x		; Store the status character in A to the corresponding memory location in block 0 of the screen. 
+    inx			; Move on to the next byte in the memory block.
+    bne memread850	; Have we reached the end? If not, keep looping until we have.
+
+    ; *****************************************************
+    ; ***                                               ***
+    ; ***  Test memory block 1 for the value we wrote.  ***
+    ; ***                                               ***
+    ; *****************************************************
+
+    ldx #0		; Memory block index. X should be 0 anyhow at this point...
+	
+memread851:
+    ldy #gud1		; PETSCII character 'G' (standing for Good). Default memory status.
+    lda mem1, x		; Pick up the value from memory block 1.
+    cmp #tst1		; Is the value what we expect?
+    beq memokay851	; YES - OK
+    ; Memory value was BAD.
+    ldy #bad1		; PETSCII character 'B' (standing for Bad). Overwrite the default.
+memokay851:
+    tya			; Recover the status character.
+    sta vdu1, x		; Store the status character in A to the corresponding memory location in block 1 of the screen. 
+    inx			; Move on to the next byte in the memory block.
+    bne memread851	; Have we reached the end? If not, keep looping until we have.
+
+    ; *****************************************************
+    ; ***                                               ***
+    ; ***  Test memory block 2 for the value we wrote.  ***
+    ; ***                                               ***
+    ; *****************************************************
+
+    ldx #0		; Memory block index. X should be 0 anyhow at this point...
+	
+memread852:
+    ldy #gud1		; PETSCII character 'G' (standing for Good). Default memory status.
+    lda mem2, x		; Pick up the value from memory block 2.
+    cmp #tst1		; Is the value what we expect?
+    beq memokay852	; YES - OK
+    ; Memory value was BAD.
+    ldy #bad1		; PETSCII character 'B' (standing for Bad). Overwrite the default.
+memokay852:
+    tya			; Recover the status character.
+    sta vdu2, x		; Store the status character in A to the corresponding memory location in block 2 of the screen. 
+    inx			; Move on to the next byte in the memory block.
+    bne memread852	; Have we reached the end? If not, keep looping until we have.
+
+    ; *****************************************************
+    ; ***                                               ***
+    ; ***  Test memory block 3 for the value we wrote.  ***
+    ; ***                                               ***
+    ; *****************************************************
+
+    ldx #0		; Memory block index. X should be 0 anyhow at this point...
+	
+memread853:
+    ldy #gud1		; PETSCII character 'G' (standing for Good). Default memory status.
+    lda mem3, x		; Pick up the value from memory block 3.
+    cmp #tst1		; Is the value what we expect?
+    beq memokay853	; YES - OK
+    ; Memory value was BAD.
+    ldy #bad1		; PETSCII character 'B' (standing for Bad). Overwrite the default.
+memokay853:
+    tya			; Recover the status character.
+    sta vdu3, x		; Store the status character in A to the corresponding memory location in block 3 of the screen. 
+    inx			; Move on to the next byte in the memory block.
+    bne memread853	; Have we reached the end? If not, keep looping until we have.
+
+    ; *************************************************************************************************
+    ; ***                                                                                           ***
+    ; ***  Perform a 'long' delay to permit the human to view the results displayed on the screen.  ***
+    ; ***                                                                                           ***
+    ; *************************************************************************************************
+
+    ldx #dlyx		; Inner delay count.
+    ldy #dlyy		; Outer delay count.
+		
+delayloop1:
+    lda mem0, x		; Pick up a 'dummy' value from memory.
+    inx			; Increment the inner delay count.
+    bne delayloop1	; Have we reached the end? If not, keep looping until we have.
+    iny			; Increment the outer delay count.
+    bne delayloop1	; Have we reached the end? If not, keep looping until we have.
+
+    ; ********************************************************************
+    ; ***                                                              ***
+    ; ***  Initialise the first 1K of memory to 170 = AAh = 10101010.  ***
+    ; ***                                                              ***
+    ; ********************************************************************
+
+    ; Register A contains the value to write into memory. A value of 
+    ; 170 (decimal) is used which equates to binary 10101010 (i.e. alternating
+    ; 1's and 0's). Note that this value is the 1's complement of the previous
+    ; value that was written.
+    ;
+    ; The value in register A is written into 4 blocks of memory starting at
+    ; address $0000. 
+
+    lda #tst2		; Value to write into memory blocks (10101010).
+    ldx #0		; Block index.
+	
+memwrite170:
+    sta mem0, x		; Block 0 of memory.
+    sta mem1, x		; Block 1 of memory.
+    sta mem2, x		; Block 2 of memory.
+    sta mem3, x		; Block 3 of memory.
+    inx			; Move on to the next byte in the memory block.
+    bne memwrite170	; Have we reached the end? If not, keep looping until we have.
+
+    ; *****************************************************
+    ; ***                                               ***
+    ; ***  Test memory block 0 for the value we wrote.  ***
+    ; ***                                               ***
+    ; *****************************************************
+
+    ldx #0		; Memory block index. X should be 0 anyhow at this point...
+	
+memread1700:
+    ldy #gud2		; PETSCII character 'g' (standing for Good). Default memory status.
+    lda mem0, x		; Pick up the value from memory block 0.
+    cmp #tst2		; Is the value what we expect?
+    beq memokay1700	; YES - OK
+    ; Memory value was BAD.
+    ldy #bad2		; PETSCII character 'b' (standing for Bad). Overwrite the default.
+memokay1700:
+    tya			; Recover the status character.
+    sta vdu0, x		; Store the status character in A to the corresponding memory location in block 0 of the screen. 
+    inx			; Move on to the next byte in the memory block.
+    bne memread1700	; Have we reached the end? If not, keep looping until we have.
+
+    ; *****************************************************
+    ; ***                                               ***
+    ; ***  Test memory block 1 for the value we wrote.  ***
+    ; ***                                               ***
+    ; *****************************************************
+
+    ldx #0		; Memory block index. X should be 0 anyhow at this point...
+	
+memread1701:
+    ldy #gud2		; PETSCII character 'g' (standing for Good). Default memory status.
+    lda mem1, x	; Pick up the value from memory block 1.
+    cmp #tst2		; Is the value what we expect?
+    beq memokay1701	; YES - OK
+    ; Memory value was BAD.
+    ldy #bad2		; PETSCII character 'b' (standing for Bad). Overwrite the default.
+memokay1701:
+    tya			; Recover the status character.
+    sta vdu1, x		; Store the status character in A to the corresponding memory location in block 1 of the screen. 
+    inx			; Move on to the next byte in the memory block.
+    bne memread1701	; Have we reached the end? If not, keep looping until we have.
+
+    ; *****************************************************
+    ; ***                                               ***
+    ; ***  Test memory block 2 for the value we wrote.  ***
+    ; ***                                               ***
+    ; *****************************************************
+
+    ldx #0		; Memory block index. X should be 0 anyhow at this point...
+	
+memread1702:
+    ldy #gud2		; PETSCII character 'g' (standing for Good). Default memory status.
+    lda mem2, x		; Pick up the value from memory block 2.
+    cmp #tst2		; Is the value what we expect?
+    beq memokay1702	; YES - OK
+    ; Memory value was BAD.
+    ldy #bad2		; PETSCII character 'b' (standing for Bad). Overwrite the default.
+memokay1702:
+    tya			; Recover the status character.
+    sta vdu2, x		; Store the status character in A to the corresponding memory location in block 2 of the screen. 
+    inx			; Move on to the next byte in the memory block.
+    bne memread1702	; Have we reached the end? If not, keep looping until we have.
+
+    ; *****************************************************
+    ; ***                                               ***
+    ; ***  Test memory block 3 for the value we wrote.  ***
+    ; ***                                               ***
+    ; *****************************************************
+
+    ldx #0		; Memory block index. X should be 0 anyhow at this point...
+	
+memread1703:
+    ldy #gud2		; PETSCII character 'g' (standing for Good). Default memory status.
+    lda mem3, x		; Pick up the value from memory block 3.
+    cmp #tst2		; Is the value what we expect?
+    beq memokay1703	; YES - OK
+    ; Memory value was BAD.
+    ldy #bad2		; PETSCII character 'b' (standing for Bad). Overwrite the default.
+memokay1703:
+    tya			; Recover the status character.
+    sta vdu3, x		; Store the status character in A to the corresponding memory location in block 3 of the screen. 
+    inx			; Move on to the next byte in the memory block.
+    bne memread1703	; Have we reached the end? If not, keep looping until we have.
+
+    ; *************************************************************************************************
+    ; ***                                                                                           ***
+    ; ***  Perform a 'long' delay to permit the human to view the results displayed on the screen.  ***
+    ; ***                                                                                           ***
+    ; *************************************************************************************************
+
+    ldx #dlyx		; Inner delay count.
+    ldy #dlyy		; Outer delay count.
+		
+delayloop2:
+    lda mem0, x		; Pick up a 'dummy' value from memory.
+    inx			; Increment the inner delay count.
+    bne delayloop2	; Have we reached the end? If not, keep looping until we have.
+    iny			; Increment the outer delay count.
+    bne delayloop2	; Have we reached the end? If not, keep looping until we have.
+
+   ; ************************************************************************
+   ; ***                                                                  ***
+   ; ***  Display all of the available PETSCII characters on the screen.  ***
+   ; ***                                                                  ***
+   ; ************************************************************************
+
+    ldx #0		; X is used as both a screen index and the PETSCII character code to display.
+
+charset:
+    txa			; Get the index from X into A. Index is the character to display.
+    sta vdu0, x		; Store the character code into block 0 of the screen.
+    sta vdu1, x		; Store the character code into block 1 of the screen.
+    sta vdu2, x		; Store the character code into block 2 of the screen.
+    sta vdu3, x		; Store the character code into block 3 of the screen.
+    inx			; Move on to next character cell on the screen block(s).
+    bne charset		; Have we reached the end? If not, keep looping until we have.
+
+    ; *************************************************************************************************
+    ; ***                                                                                           ***
+    ; ***  Perform a 'long' delay to permit the human to view the results displayed on the screen.  ***
+    ; ***                                                                                           ***
+    ; *************************************************************************************************
+
+    ldx #dlyx		; Inner delay count.
+    ldy #dlyy		; Outer delay count.
+		
+delayloop3:
+    lda mem0, x		; Pick up a 'dummy' value from memory.
+    inx			; Increment the inner delay count.
+    bne delayloop3	; Have we reached the end? If not, keep looping until we have.
+    iny			; Increment the outer delay count.
+    bne delayloop3	; Have we reached the end? If not, keep looping until we have.
+
+    ; ****************************
+    ; ***                      ***
+    ; ***  Checksum the ROMs.  ***
+    ; ***                      ***
+    ; ****************************
+
+    ; Check the state of the DIAG pin (PIA #1 at $E810 bit 7). On a reset, all of the PIA
+    ; registers are cleared. This means that both ports act as input ports - exactly what we want.
+    ; If bit 7 of $E810 is a '1' it signifies that the DIAG pin is not grounded (the default) - and we should 
+    ; continue with the RAM and VDU memory testing. If $E810 bit 7 is a '0', this signifies that the user
+    ; wishes to perform an EPROM checksum test. This testing assumes that memory in page 0 is actually working.
+
+    lda sensepia	; Get the state of PIO #1 Port 'A' ($E810) into the accumulator. 
+    and #diagbit	; Mask out everything but the DIAG bit.
+    beq dochecksum	; If the bit is clear ('0') then perform the ROM checksums.
+    jmp again		; Ignore the ROM checksum and perform the RAM and VDU memory test again.
+
+dochecksum:
+
+    ; ***************************************
+    ; ***                                 ***
+    ; ***  Clear the entire screen (1K).  ***
+    ; ***                                 ***
+    ; ***************************************
+
+    lda #spc		; PETSCII for the [space] character.
+    ldx #0		; Index = 0.
+
+clearscreen:	
+    sta vdu0, x		; Block 0 of screen.
+    sta vdu1, x		; Block 1 of screen.
+    sta vdu2, x		; Block 2 of screen.
+    sta vdu3, x		; Block 3 of screen.
+    inx			; Move on to next character cell in the screen block(s).
+    bne clearscreen	; Have we reached the end? If not, keep looping until we have.
+
+; TODO: @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+
+; Checksum each ROM. Note that checksumming the $E000 ROM is not sensible...
+
+; TODO: @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+
+; TODO: @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+
+; Add a check that the key matrix works? Scan matrix and display the results (in hex) on a line on the screen?
+
+; TODO: @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+
+    ; *************************************************************************************************
+    ; ***                                                                                           ***
+    ; ***  Perform a 'long' delay to permit the human to view the results displayed on the screen.  ***
+    ; ***                                                                                           ***
+    ; *************************************************************************************************
+
+    ldx #dlyx		; Inner delay count.
+    ldy #dlyy		; Outer delay count.
+		
+delayloop4:
+    lda mem0, x		; Pick up a 'dummy' value from memory.
+    inx			; Increment the inner delay count.
+    bne delayloop4	; Have we reached the end? If not, keep looping until we have.
+    iny			; Increment the outer delay count.
+    bne delayloop4	; Have we reached the end? If not, keep looping until we have.
+
+    ; ****************************************
+    ; ***                                  ***
+    ; ***  Keep repeating for eternity...  ***
+    ; ***                                  ***
+    ; ****************************************
+
+    jmp again		; Play it again Sam...
+	
+; **************
+; ***        ***
+; ***  END.  ***
+; ***        ***
+; **************

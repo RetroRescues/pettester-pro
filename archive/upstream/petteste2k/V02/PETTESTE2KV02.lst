@@ -1,0 +1,770 @@
+0000                          ; PETTESTE2KV02.a65
+0000                          ; =================
+0000                          ; 
+0000                VERSION:   EQU   $02   
+0000                          ; This replaces the 2K PET EDIT ROM located at $E000.
+0000                          ; 
+E000                          .ORG   $E000   
+E000                          ; Version: 1.0
+E000                          ;   Date : 14th July 2018.
+E000                          ; Author : Dave Roberts. Mainly plagiarised from Eudimorphodon with bits copied from dave_m...
+E000                          ; Change : First creation.
+E000                          ; 
+E000                          ; Version: 2.0
+E000                          ;   Date : 17th July 2018.
+E000                          ; Author : Dave Roberts.
+E000                          ; Change : Add $00 to $FF 1K memory test.
+E000                          ; Assemble with https://www.asm80.com
+E000                          ; This is the entry vector into the initialisation portion
+E000                          ; of the EDIT ROM. It is called by the kernel ROM ($F000)
+E000                          ; after a small amount of processing (i.e. maskable interrupts
+E000                          ; have been inhibited and the decimal arithmetic flag cleared).
+E000                          ; 
+E000                          ; This entry point is CALLED by the kernel ROM - but the
+E000                          ; page 0 RAM may not be working (so the return address may not
+E000                          ; actually work). Anyhow - we have no plans of returning anyhow...
+E000                          ; 
+E000                          ; Bypass any fixed constants stored in the ROM (e.g. the
+E000                          ; initialisation values for the CRT Controller).
+E000                          ; 
+E000   4C 17 E0               JMP   start   
+E003                          ; 
+E003   56 02                  DB   'V',VERSION   
+E005                          ; Initialisation table for the CRT Controller. One byte for
+E005                          ; each register (in numeric order starting at register 0).
+E005                          ; 
+E005                          ; Table obtained from http://cbm-hackers.2304266.n4.nabble.com/PET-50Hz-editor-ROMS-td4658493.html
+E005                          ; 
+E005                          ;           PET/CBM PET/CBM PET/CBM  8296D   NTSC     PAL
+E005                          ;            60 Hz   50 Hz   50 Hz   50 HZ   60 Hz   50 Hz
+E005                          ; 
+E005                          ; Business
+E005                          ; ========
+E005                          ; 
+E005                          ; reg.  0     49      49      50      48      63      63
+E005                          ; reg.  1     40      40      40      40      40      40
+E005                          ; reg.  2     41      41      40      44      49      50
+E005                          ; reg.  3     15      15       8       8      15       8
+E005                          ; reg.  4     32      39      38      32      31      32
+E005                          ; reg.  5      3       0       2       9       7      16
+E005                          ; reg.  6     25      25      25      25      25      25
+E005                          ; reg.  7     29      32      32      29      29      29
+E005                          ; reg.  8      0       0       0       0       0       0
+E005                          ; reg.  9      9       9       9       9       7       8
+E005                          ; reg. 10      0       0       0       0       0       0
+E005                          ; reg. 11      0       0       0       0       0       0
+E005                          ; reg. 12     16      16      16      16      16      16
+E005                          ; reg. 13      0       0       0       0       0       0
+E005                          ; reg. 14      0       0       0       0       0       0
+E005                          ; reg. 15      0       0       0       0       0       0
+E005                          ; reg. 16      0       0       0       0       0       0
+E005                          ; reg. 17      0       0       0       0       0       0
+E005                          ; 
+E005                          ; Graphic
+E005                          ; =======
+E005                          ; 
+E005                          ; reg.  0     49      49      50      48      63      63
+E005                          ; reg.  1     40      40      40      40      40      40
+E005                          ; reg.  2     41      41      40      44      49      50
+E005                          ; reg.  3     15      15       8       8      15       8
+E005                          ; reg.  4     40      49      48      41      31      36
+E005                          ; reg.  5      5       0       0       3       7      17
+E005                          ; reg.  6     25      25      25      25      25      25
+E005                          ; reg.  7     33      37      37      34      29      32
+E005                          ; reg.  8      0       0       0       0       0       0
+E005                          ; reg.  9      7       7       7       7       7       7
+E005                          ; reg. 10      0       0       0       0       0       0
+E005                          ; reg. 11      0       0       0       0       0       0
+E005                          ; reg. 12     16      16      16      16      16      16
+E005                          ; reg. 13      0       0       0       0       0       0
+E005                          ; reg. 14      0       0       0       0       0       0
+E005                          ; reg. 15      0       0       0       0       0       0
+E005                          ; reg. 16      0       0       0       0       0       0
+E005                          ; reg. 17      0       0       0       0       0       0
+E005                CRTC_INIT:   
+E005                          ; PET/CBM 60Hz Business.
+E005                          ; ======================
+E005                          ; 
+E005   31                     DB   49   ; Register 0.
+E006   28                     DB   40   ; Register 1.
+E007   29                     DB   41   ; Register 2.
+E008   0F                     DB   15   ; Register 3.
+E009   20                     DB   32   ; Register 4.
+E00A   03                     DB   3   ; Register 5.
+E00B   19                     DB   25   ; Register 6.
+E00C   1D                     DB   29   ; Register 7.
+E00D   00                     DB   0   ; Register 8.
+E00E   09                     DB   9   ; Register 9.
+E00F   00                     DB   0   ; Register 10.
+E010   00                     DB   0   ; Register 11.
+E011   10                     DB   16   ; Register 12.
+E012   00                     DB   0   ; Register 13.
+E013   00                     DB   0   ; Register 14.
+E014   00                     DB   0   ; Register 15.
+E015   00                     DB   0   ; Register 16.
+E016   00                     DB   0   ; Register 17.
+E017                          ; ******************
+E017                          ; ***            ***
+E017                          ; ***  EQUATES.  ***
+E017                          ; ***            ***
+E017                          ; ******************
+E017                          ; DELAY parameters.
+E017                          ; =================
+E017                DLYX:     EQU   $00   
+E017                DLYY:     EQU   $00   
+E017                          ; VDU memory.
+E017                          ; ===========
+E017                VDU0:     EQU   $8000   
+E017                VDU1:     EQU   $8100   
+E017                VDU2:     EQU   $8200   
+E017                VDU3:     EQU   $8300   
+E017                          ; Low RAM memory.
+E017                          ; ===============
+E017                MEM0:     EQU   $0000   
+E017                MEM1:     EQU   $0100   
+E017                MEM2:     EQU   $0200   
+E017                MEM3:     EQU   $0300   
+E017                          ; PETSCII character codes.
+E017                          ; ========================
+E017                NONE:     EQU   $0E   
+E017                BAD1:     EQU   $02   
+E017                GUD1:     EQU   $07   
+E017                BAD2:     EQU   $42   
+E017                GUD2:     EQU   $47   
+E017                SPC:      EQU   $20   
+E017                          ; Memory test values.
+E017                          ; ===================
+E017                TST1:     EQU   $55   
+E017                TST2:     EQU   $AA   
+E017                          ; CRT Controller addresses.
+E017                          ; =========================
+E017                CRTCA:    EQU   $E880   
+E017                CRTCD:    EQU   $E881   
+E017                          ; PIA #1 - DIAG bit equates.
+E017                          ; ==========================
+E017                SENSEPIA:   EQU   $E810   
+E017                DIAGBIT:   EQU   $80   
+E017                          ; ***************************************************
+E017                          ; ***                                             ***
+E017                          ; ***  THIS IS THE REAL ENTRY POINT OF THE TEST.  ***
+E017                          ; ***                                             ***
+E017                          ; ***************************************************
+E017                START:    
+E017                          ; Initialise the CRTC (if it exists).
+E017                          ; ===================================
+E017   A2 00                  LDX   #0   ; Start with CRT Controller register 0.
+E019                MORE_CRTC:   
+E019   BD 05 E0               LDA   CRTC_INIT,x   ; Pick up the initialisation value for this register.
+E01C   8E 80 E8               STX   crtca   ; Tell the CRT Controller which register we are going to initialise.
+E01F   8D 81 E8               STA   crtcd   ; Initialisation value for the register just defined.
+E022   E8                     INX   ; Index the next CRT Controller register.
+E023   E0 12                  CPX   #12h   ; Have we finished initialising the CRT Controller?
+E025   D0 F2                  BNE   more_crtc   ; If not, skip back and initialise more registers.
+E027   4C 2A E0               JMP   again   ; Go do the testing...
+E02A                          ; 
+E02A                          ; The CRT Controller should be now initialised and displaying random rubbish
+E02A                          ; on the screen! Of course, the CRT itself may need time to 'warm up' before
+E02A                          ; this rubbish can be seen!
+E02A                          ; Original comments:
+E02A                          ; 
+E02A                          ; This is a cruddy little ROM-able test program for a non-CRTC
+E02A                          ; Commodore PET. It's designed to substitute for the F000/F800 Kernel ROM.
+E02A                          ; 
+E02A                          ; Written by Eudimorphodon, 2011, Revised 2012	
+E02A                          ; 
+E02A                          ; Hacked by daver2, 2018. Now designed to substitute for the E000 Edit ROM.
+E02A                          ; Ignore any comments to the contrary...
+E02A                          ; 
+E02A                AGAIN:    
+E02A                          ; **************************************************************
+E02A                          ; ***                                                        ***
+E02A                          ; ***  Initialise the entire screen (1K) to the letter 'N'.  ***
+E02A                          ; ***                                                        ***
+E02A                          ; **************************************************************
+E02A   A9 0E                  LDA   #none   ; Screen initialisation character 'N'.
+E02C   A2 00                  LDX   #0   ; Index = 0.
+E02E                DUMPSCREEN:   
+E02E   9D 00 80               STA   vdu0,x   ; Block 0 of screen.
+E031   9D 00 81               STA   vdu1,x   ; Block 1 of screen.
+E034   9D 00 82               STA   vdu2,x   ; Block 2 of screen.
+E037   9D 00 83               STA   vdu3,x   ; Block 3 of screen.
+E03A   E8                     INX   ; Move on to next character cell in the screen block(s).
+E03B   D0 F1                  BNE   dumpscreen   ; Have we reached the end? If not, keep looping until we have.
+E03D                          ; *******************************************************************
+E03D                          ; ***                                                             ***
+E03D                          ; ***  Initialise the first 1K of memory to 85 = 55h = 01010101.  ***
+E03D                          ; ***                                                             ***
+E03D                          ; *******************************************************************
+E03D                          ; Register A contains the value to write into memory. A value of
+E03D                          ; 85 (decimal) is used which equates to binary 01010101 (i.e. alternating
+E03D                          ; 1's and 0's).
+E03D                          ; 
+E03D                          ; The value in register A is written into 4 blocks of memory starting at
+E03D                          ; address $0000.
+E03D   A9 55                  LDA   #tst1   ; Value to write into memory blocks (01010101).
+E03F   A2 00                  LDX   #0   ; Block index.
+E041                          ; 
+E041                MEMWRITE85:   
+E041   9D 00 00               STA   mem0,x   ; Block 0 of memory.
+E044   9D 00 01               STA   mem1,x   ; Block 1 of memory.
+E047   9D 00 02               STA   mem2,x   ; Block 2 of memory.
+E04A   9D 00 03               STA   mem3,x   ; Block 3 of memory.
+E04D   E8                     INX   ; Move on to the next byte in the memory block.
+E04E   D0 F1                  BNE   memwrite85   ; Have we reached the end? If not, keep looping until we have.
+E050                          ; *****************************************************
+E050                          ; ***                                               ***
+E050                          ; ***  Test memory block 0 for the value we wrote.  ***
+E050                          ; ***                                               ***
+E050                          ; *****************************************************
+E050   A2 00                  LDX   #0   ; Memory block index. X should be 0 anyhow at this point...
+E052                          ; 
+E052                MEMREAD850:   
+E052   A0 07                  LDY   #gud1   ; PETSCII character 'G' (standing for Good). Default memory status.
+E054   BD 00 00               LDA   mem0,x   ; Pick up the value from memory block 0.
+E057   C9 55                  CMP   #tst1   ; Is the value what we expect?
+E059   F0 02                  BEQ   memokay850   ; YES - OK
+E05B                          ; Memory value was BAD.
+E05B   A0 02                  LDY   #bad1   ; PETSCII character 'B' (standing for Bad). Overwrite the default.
+E05D                MEMOKAY850:   
+E05D   98                     TYA   ; Recover the status character.
+E05E   9D 00 80               STA   vdu0,x   ; Store the status character in A to the corresponding memory location in block 0 of the screen.
+E061   E8                     INX   ; Move on to the next byte in the memory block.
+E062   D0 EE                  BNE   memread850   ; Have we reached the end? If not, keep looping until we have.
+E064                          ; *****************************************************
+E064                          ; ***                                               ***
+E064                          ; ***  Test memory block 1 for the value we wrote.  ***
+E064                          ; ***                                               ***
+E064                          ; *****************************************************
+E064   A2 00                  LDX   #0   ; Memory block index. X should be 0 anyhow at this point...
+E066                          ; 
+E066                MEMREAD851:   
+E066   A0 07                  LDY   #gud1   ; PETSCII character 'G' (standing for Good). Default memory status.
+E068   BD 00 01               LDA   mem1,x   ; Pick up the value from memory block 1.
+E06B   C9 55                  CMP   #tst1   ; Is the value what we expect?
+E06D   F0 02                  BEQ   memokay851   ; YES - OK
+E06F                          ; Memory value was BAD.
+E06F   A0 02                  LDY   #bad1   ; PETSCII character 'B' (standing for Bad). Overwrite the default.
+E071                MEMOKAY851:   
+E071   98                     TYA   ; Recover the status character.
+E072   9D 00 81               STA   vdu1,x   ; Store the status character in A to the corresponding memory location in block 1 of the screen.
+E075   E8                     INX   ; Move on to the next byte in the memory block.
+E076   D0 EE                  BNE   memread851   ; Have we reached the end? If not, keep looping until we have.
+E078                          ; *****************************************************
+E078                          ; ***                                               ***
+E078                          ; ***  Test memory block 2 for the value we wrote.  ***
+E078                          ; ***                                               ***
+E078                          ; *****************************************************
+E078   A2 00                  LDX   #0   ; Memory block index. X should be 0 anyhow at this point...
+E07A                          ; 
+E07A                MEMREAD852:   
+E07A   A0 07                  LDY   #gud1   ; PETSCII character 'G' (standing for Good). Default memory status.
+E07C   BD 00 02               LDA   mem2,x   ; Pick up the value from memory block 2.
+E07F   C9 55                  CMP   #tst1   ; Is the value what we expect?
+E081   F0 02                  BEQ   memokay852   ; YES - OK
+E083                          ; Memory value was BAD.
+E083   A0 02                  LDY   #bad1   ; PETSCII character 'B' (standing for Bad). Overwrite the default.
+E085                MEMOKAY852:   
+E085   98                     TYA   ; Recover the status character.
+E086   9D 00 82               STA   vdu2,x   ; Store the status character in A to the corresponding memory location in block 2 of the screen.
+E089   E8                     INX   ; Move on to the next byte in the memory block.
+E08A   D0 EE                  BNE   memread852   ; Have we reached the end? If not, keep looping until we have.
+E08C                          ; *****************************************************
+E08C                          ; ***                                               ***
+E08C                          ; ***  Test memory block 3 for the value we wrote.  ***
+E08C                          ; ***                                               ***
+E08C                          ; *****************************************************
+E08C   A2 00                  LDX   #0   ; Memory block index. X should be 0 anyhow at this point...
+E08E                          ; 
+E08E                MEMREAD853:   
+E08E   A0 07                  LDY   #gud1   ; PETSCII character 'G' (standing for Good). Default memory status.
+E090   BD 00 03               LDA   mem3,x   ; Pick up the value from memory block 3.
+E093   C9 55                  CMP   #tst1   ; Is the value what we expect?
+E095   F0 02                  BEQ   memokay853   ; YES - OK
+E097                          ; Memory value was BAD.
+E097   A0 02                  LDY   #bad1   ; PETSCII character 'B' (standing for Bad). Overwrite the default.
+E099                MEMOKAY853:   
+E099   98                     TYA   ; Recover the status character.
+E09A   9D 00 83               STA   vdu3,x   ; Store the status character in A to the corresponding memory location in block 3 of the screen.
+E09D   E8                     INX   ; Move on to the next byte in the memory block.
+E09E   D0 EE                  BNE   memread853   ; Have we reached the end? If not, keep looping until we have.
+E0A0                          ; *************************************************************************************************
+E0A0                          ; ***                                                                                           ***
+E0A0                          ; ***  Perform a 'long' delay to permit the human to view the results displayed on the screen.  ***
+E0A0                          ; ***                                                                                           ***
+E0A0                          ; *************************************************************************************************
+E0A0   A2 00                  LDX   #dlyx   ; Inner delay count.
+E0A2   A0 00                  LDY   #dlyy   ; Outer delay count.
+E0A4                          ; 
+E0A4                DELAYLOOP1:   
+E0A4   BD 00 00               LDA   mem0,x   ; Pick up a 'dummy' value from memory.
+E0A7   E8                     INX   ; Increment the inner delay count.
+E0A8   D0 FA                  BNE   delayloop1   ; Have we reached the end? If not, keep looping until we have.
+E0AA   C8                     INY   ; Increment the outer delay count.
+E0AB   D0 F7                  BNE   delayloop1   ; Have we reached the end? If not, keep looping until we have.
+E0AD                          ; ********************************************************************
+E0AD                          ; ***                                                              ***
+E0AD                          ; ***  Initialise the first 1K of memory to 170 = AAh = 10101010.  ***
+E0AD                          ; ***                                                              ***
+E0AD                          ; ********************************************************************
+E0AD                          ; Register A contains the value to write into memory. A value of
+E0AD                          ; 170 (decimal) is used which equates to binary 10101010 (i.e. alternating
+E0AD                          ; 1's and 0's). Note that this value is the 1's complement of the previous
+E0AD                          ; value that was written.
+E0AD                          ; 
+E0AD                          ; The value in register A is written into 4 blocks of memory starting at
+E0AD                          ; address $0000.
+E0AD   A9 AA                  LDA   #tst2   ; Value to write into memory blocks (10101010).
+E0AF   A2 00                  LDX   #0   ; Block index.
+E0B1                          ; 
+E0B1                MEMWRITE170:   
+E0B1   9D 00 00               STA   mem0,x   ; Block 0 of memory.
+E0B4   9D 00 01               STA   mem1,x   ; Block 1 of memory.
+E0B7   9D 00 02               STA   mem2,x   ; Block 2 of memory.
+E0BA   9D 00 03               STA   mem3,x   ; Block 3 of memory.
+E0BD   E8                     INX   ; Move on to the next byte in the memory block.
+E0BE   D0 F1                  BNE   memwrite170   ; Have we reached the end? If not, keep looping until we have.
+E0C0                          ; *****************************************************
+E0C0                          ; ***                                               ***
+E0C0                          ; ***  Test memory block 0 for the value we wrote.  ***
+E0C0                          ; ***                                               ***
+E0C0                          ; *****************************************************
+E0C0   A2 00                  LDX   #0   ; Memory block index. X should be 0 anyhow at this point...
+E0C2                          ; 
+E0C2                MEMREAD1700:   
+E0C2   A0 47                  LDY   #gud2   ; PETSCII character 'g' (standing for Good). Default memory status.
+E0C4   BD 00 00               LDA   mem0,x   ; Pick up the value from memory block 0.
+E0C7   C9 AA                  CMP   #tst2   ; Is the value what we expect?
+E0C9   F0 02                  BEQ   memokay1700   ; YES - OK
+E0CB                          ; Memory value was BAD.
+E0CB   A0 42                  LDY   #bad2   ; PETSCII character 'b' (standing for Bad). Overwrite the default.
+E0CD                MEMOKAY1700:   
+E0CD   98                     TYA   ; Recover the status character.
+E0CE   9D 00 80               STA   vdu0,x   ; Store the status character in A to the corresponding memory location in block 0 of the screen.
+E0D1   E8                     INX   ; Move on to the next byte in the memory block.
+E0D2   D0 EE                  BNE   memread1700   ; Have we reached the end? If not, keep looping until we have.
+E0D4                          ; *****************************************************
+E0D4                          ; ***                                               ***
+E0D4                          ; ***  Test memory block 1 for the value we wrote.  ***
+E0D4                          ; ***                                               ***
+E0D4                          ; *****************************************************
+E0D4   A2 00                  LDX   #0   ; Memory block index. X should be 0 anyhow at this point...
+E0D6                          ; 
+E0D6                MEMREAD1701:   
+E0D6   A0 47                  LDY   #gud2   ; PETSCII character 'g' (standing for Good). Default memory status.
+E0D8   BD 00 01               LDA   mem1,x   ; Pick up the value from memory block 1.
+E0DB   C9 AA                  CMP   #tst2   ; Is the value what we expect?
+E0DD   F0 02                  BEQ   memokay1701   ; YES - OK
+E0DF                          ; Memory value was BAD.
+E0DF   A0 42                  LDY   #bad2   ; PETSCII character 'b' (standing for Bad). Overwrite the default.
+E0E1                MEMOKAY1701:   
+E0E1   98                     TYA   ; Recover the status character.
+E0E2   9D 00 81               STA   vdu1,x   ; Store the status character in A to the corresponding memory location in block 1 of the screen.
+E0E5   E8                     INX   ; Move on to the next byte in the memory block.
+E0E6   D0 EE                  BNE   memread1701   ; Have we reached the end? If not, keep looping until we have.
+E0E8                          ; *****************************************************
+E0E8                          ; ***                                               ***
+E0E8                          ; ***  Test memory block 2 for the value we wrote.  ***
+E0E8                          ; ***                                               ***
+E0E8                          ; *****************************************************
+E0E8   A2 00                  LDX   #0   ; Memory block index. X should be 0 anyhow at this point...
+E0EA                          ; 
+E0EA                MEMREAD1702:   
+E0EA   A0 47                  LDY   #gud2   ; PETSCII character 'g' (standing for Good). Default memory status.
+E0EC   BD 00 02               LDA   mem2,x   ; Pick up the value from memory block 2.
+E0EF   C9 AA                  CMP   #tst2   ; Is the value what we expect?
+E0F1   F0 02                  BEQ   memokay1702   ; YES - OK
+E0F3                          ; Memory value was BAD.
+E0F3   A0 42                  LDY   #bad2   ; PETSCII character 'b' (standing for Bad). Overwrite the default.
+E0F5                MEMOKAY1702:   
+E0F5   98                     TYA   ; Recover the status character.
+E0F6   9D 00 82               STA   vdu2,x   ; Store the status character in A to the corresponding memory location in block 2 of the screen.
+E0F9   E8                     INX   ; Move on to the next byte in the memory block.
+E0FA   D0 EE                  BNE   memread1702   ; Have we reached the end? If not, keep looping until we have.
+E0FC                          ; *****************************************************
+E0FC                          ; ***                                               ***
+E0FC                          ; ***  Test memory block 3 for the value we wrote.  ***
+E0FC                          ; ***                                               ***
+E0FC                          ; *****************************************************
+E0FC   A2 00                  LDX   #0   ; Memory block index. X should be 0 anyhow at this point...
+E0FE                          ; 
+E0FE                MEMREAD1703:   
+E0FE   A0 47                  LDY   #gud2   ; PETSCII character 'g' (standing for Good). Default memory status.
+E100   BD 00 03               LDA   mem3,x   ; Pick up the value from memory block 3.
+E103   C9 AA                  CMP   #tst2   ; Is the value what we expect?
+E105   F0 02                  BEQ   memokay1703   ; YES - OK
+E107                          ; Memory value was BAD.
+E107   A0 42                  LDY   #bad2   ; PETSCII character 'b' (standing for Bad). Overwrite the default.
+E109                MEMOKAY1703:   
+E109   98                     TYA   ; Recover the status character.
+E10A   9D 00 83               STA   vdu3,x   ; Store the status character in A to the corresponding memory location in block 3 of the screen.
+E10D   E8                     INX   ; Move on to the next byte in the memory block.
+E10E   D0 EE                  BNE   memread1703   ; Have we reached the end? If not, keep looping until we have.
+E110                          ; *************************************************************************************************
+E110                          ; ***                                                                                           ***
+E110                          ; ***  Perform a 'long' delay to permit the human to view the results displayed on the screen.  ***
+E110                          ; ***                                                                                           ***
+E110                          ; *************************************************************************************************
+E110   A2 00                  LDX   #dlyx   ; Inner delay count.
+E112   A0 00                  LDY   #dlyy   ; Outer delay count.
+E114                          ; 
+E114                DELAYLOOP2:   
+E114   BD 00 00               LDA   mem0,x   ; Pick up a 'dummy' value from memory.
+E117   E8                     INX   ; Increment the inner delay count.
+E118   D0 FA                  BNE   delayloop2   ; Have we reached the end? If not, keep looping until we have.
+E11A   C8                     INY   ; Increment the outer delay count.
+E11B   D0 F7                  BNE   delayloop2   ; Have we reached the end? If not, keep looping until we have.
+E11D                          ; ***********************************************************************
+E11D                          ; ***                                                                 ***
+E11D                          ; ***  Initialise the first 1K of memory to 4 repeats of $00 to $FF.  ***
+E11D                          ; ***                                                                 ***
+E11D                          ; ***********************************************************************
+E11D   A2 00                  LDX   #0   ; Memory index.
+E11F                ADD2MEM:   
+E11F   8A                     TXA   ; Transfer the memory index from X into A.
+E120   9D 00 00               STA   mem0,x   ; Block 0 of memory.
+E123   9D 00 01               STA   mem1,x   ; Block 1 of memory.
+E126   9D 00 02               STA   mem2,x   ; Block 2 of memory.
+E129   9D 00 03               STA   mem3,x   ; Block 3 of memory.
+E12C   E8                     INX   ; Move index along.
+E12D   D0 F0                  BNE   add2mem   ; Keep looping until finished.
+E12F                          ; *****************************************************************************************************
+E12F                          ; ***                                                                                               ***
+E12F                          ; ***  Test the memory that we have just written. Display 'B' for bad and 'g' for good on the VDU.  ***
+E12F                          ; ***                                                                                               ***
+E12F                          ; *****************************************************************************************************
+E12F                          ; Memory block 0
+E12F   A2 00                  LDX   #0   ; Memory index.
+E131                MEMVAL0:   
+E131   8A                     TXA   ; Transfer the memory index from X to A.
+E132   DD 00 00               CMP   mem0,x   ; Compare what is in memory to what we expect it to be (the address).
+E135   F0 05                  BEQ   memval0G   ; OK
+E137   A9 02                  LDA   #bad1   ; BAD indicator (B).
+E139   4C 3E E1               JMP   memval0C   ; Common code to display the status character.
+E13C                MEMVAL0G:   
+E13C   A9 47                  LDA   #gud2   ; GOOD indicator (g).
+E13E                MEMVAL0C:   
+E13E   9D 00 80               STA   vdu0,x   ; Store the status value on the VDU.
+E141   E8                     INX   ; Test next memory location.
+E142   D0 ED                  BNE   memval0   ; Keep looping until all done.
+E144                          ; Memory block 1.
+E144   A2 00                  LDX   #0   ; Memory index.
+E146                MEMVAL1:   
+E146   8A                     TXA   ; Transfer the memory index from X to A.
+E147   DD 00 01               CMP   mem1,x   ; Compare what is in memory to what we expect it to be (the address).
+E14A   F0 05                  BEQ   memval1G   ; OK
+E14C   A9 02                  LDA   #bad1   ; BAD indicator (B).
+E14E   4C 53 E1               JMP   memval1C   ; Common code to display the status character.
+E151                MEMVAL1G:   
+E151   A9 47                  LDA   #gud2   ; GOOD indicator (g).
+E153                MEMVAL1C:   
+E153   9D 00 81               STA   vdu1,x   ; Store the status value on the VDU.
+E156   E8                     INX   ; Test next memory location.
+E157   D0 ED                  BNE   memval1   ; Keep looping until all done.
+E159                          ; Memory block 2.
+E159   A2 00                  LDX   #0   ; Memory index.
+E15B                MEMVAL2:   
+E15B   8A                     TXA   ; Transfer the memory index from X to A.
+E15C   DD 00 02               CMP   mem2,x   ; Compare what is in memory to what we expect it to be (the address).
+E15F   F0 05                  BEQ   memval2G   ; OK
+E161   A9 02                  LDA   #bad1   ; BAD indicator (B).
+E163   4C 68 E1               JMP   memval2C   ; Common code to display the status character.
+E166                MEMVAL2G:   
+E166   A9 47                  LDA   #gud2   ; GOOD indicator (g).
+E168                MEMVAL2C:   
+E168   9D 00 82               STA   vdu2,x   ; Store the status value on the VDU.
+E16B   E8                     INX   ; Test next memory location.
+E16C   D0 ED                  BNE   memval2   ; Keep looping until all done.
+E16E                          ; Memory block 3.
+E16E   A2 00                  LDX   #0   ; Memory index.
+E170                MEMVAL3:   
+E170   8A                     TXA   ; Transfer the memory index from X to A.
+E171   DD 00 03               CMP   mem3,x   ; Compare what is in memory to what we expect it to be (the address).
+E174   F0 05                  BEQ   memval3G   ; OK
+E176   A9 02                  LDA   #bad1   ; BAD indicator (B).
+E178   4C 7D E1               JMP   memval3C   ; Common code to display the status character.
+E17B                MEMVAL3G:   
+E17B   A9 47                  LDA   #gud2   ; GOOD indicator (g).
+E17D                MEMVAL3C:   
+E17D   9D 00 83               STA   vdu3,x   ; Store the status value on the VDU.
+E180   E8                     INX   ; Test next memory location.
+E181   D0 ED                  BNE   memval3   ; Keep looping until all done.
+E183                          ; *************************************************************************************************
+E183                          ; ***                                                                                           ***
+E183                          ; ***  Perform a 'long' delay to permit the human to view the results displayed on the screen.  ***
+E183                          ; ***                                                                                           ***
+E183                          ; *************************************************************************************************
+E183   A2 00                  LDX   #dlyx   ; Inner delay count.
+E185   A0 00                  LDY   #dlyy   ; Outer delay count.
+E187                          ; 
+E187                DELAYLOOP3:   
+E187   BD 00 00               LDA   mem0,x   ; Pick up a 'dummy' value from memory.
+E18A   E8                     INX   ; Increment the inner delay count.
+E18B   D0 FA                  BNE   delayloop3   ; Have we reached the end? If not, keep looping until we have.
+E18D   C8                     INY   ; Increment the outer delay count.
+E18E   D0 F7                  BNE   delayloop3   ; Have we reached the end? If not, keep looping until we have.
+E190                          ; ************************************************************************
+E190                          ; ***                                                                  ***
+E190                          ; ***  Display all of the available PETSCII characters on the screen.  ***
+E190                          ; ***                                                                  ***
+E190                          ; ************************************************************************
+E190   A2 00                  LDX   #0   ; X is used as both a screen index and the PETSCII character code to display.
+E192                CHARSET:   
+E192   8A                     TXA   ; Get the index from X into A. Index is the character to display.
+E193   9D 00 80               STA   vdu0,x   ; Store the character code into block 0 of the screen.
+E196   9D 00 81               STA   vdu1,x   ; Store the character code into block 1 of the screen.
+E199   9D 00 82               STA   vdu2,x   ; Store the character code into block 2 of the screen.
+E19C   9D 00 83               STA   vdu3,x   ; Store the character code into block 3 of the screen.
+E19F   E8                     INX   ; Move on to next character cell on the screen block(s).
+E1A0   D0 F0                  BNE   charset   ; Have we reached the end? If not, keep looping until we have.
+E1A2                          ; *************************************************************************************************
+E1A2                          ; ***                                                                                           ***
+E1A2                          ; ***  Perform a 'long' delay to permit the human to view the results displayed on the screen.  ***
+E1A2                          ; ***                                                                                           ***
+E1A2                          ; *************************************************************************************************
+E1A2   A2 00                  LDX   #dlyx   ; Inner delay count.
+E1A4   A0 00                  LDY   #dlyy   ; Outer delay count.
+E1A6                          ; 
+E1A6                DELAYLOOP4:   
+E1A6   BD 00 00               LDA   mem0,x   ; Pick up a 'dummy' value from memory.
+E1A9   E8                     INX   ; Increment the inner delay count.
+E1AA   D0 FA                  BNE   delayloop4   ; Have we reached the end? If not, keep looping until we have.
+E1AC   C8                     INY   ; Increment the outer delay count.
+E1AD   D0 F7                  BNE   delayloop4   ; Have we reached the end? If not, keep looping until we have.
+E1AF                          ; ****************************
+E1AF                          ; ***                      ***
+E1AF                          ; ***  Checksum the ROMs.  ***
+E1AF                          ; ***                      ***
+E1AF                          ; ****************************
+E1AF                          ; Check the state of the DIAG pin (PIA #1 at $E810 bit 7). On a reset, all of the PIA
+E1AF                          ; registers are cleared. This means that both ports act as input ports - exactly what we want.
+E1AF                          ; If bit 7 of $E810 is a '1' it signifies that the DIAG pin is not grounded (the default) - and we should
+E1AF                          ; continue with the RAM and VDU memory testing. If $E810 bit 7 is a '0', this signifies that the user
+E1AF                          ; wishes to perform an EPROM checksum test. This testing assumes that memory in page 0 is actually working.
+E1AF   AD 10 E8               LDA   sensepia   ; Get the state of PIO #1 Port 'A' ($E810) into the accumulator.
+E1B2   29 80                  AND   #diagbit   ; Mask out everything but the DIAG bit.
+E1B4   F0 16                  BEQ   dochecksum   ; If the bit is clear ('0') then perform the ROM checksums.
+E1B6   4C 2A E0               JMP   again   ; Ignore the ROM checksum and perform the RAM and VDU memory test again.
+E1B9                          ; ***************************************
+E1B9                          ; ***                                 ***
+E1B9                          ; ***  Clear the entire screen (1K).  ***
+E1B9                          ; ***                                 ***
+E1B9                          ; ***************************************
+E1B9   A9 20                  LDA   #spc   ; PETSCII for the [space] character.
+E1BB   A2 00                  LDX   #0   ; Index = 0.
+E1BD                CLEARSCREEN:   
+E1BD   9D 00 80               STA   vdu0,x   ; Block 0 of screen.
+E1C0   9D 00 81               STA   vdu1,x   ; Block 1 of screen.
+E1C3   9D 00 82               STA   vdu2,x   ; Block 2 of screen.
+E1C6   9D 00 83               STA   vdu3,x   ; Block 3 of screen.
+E1C9   E8                     INX   ; Move on to next character cell in the screen block(s).
+E1CA   D0 F1                  BNE   clearscreen   ; Have we reached the end? If not, keep looping until we have.
+E1CC                DOCHECKSUM:   
+E1CC                          ; TODO: @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+E1CC                          ; Checksum each ROM. Note that checksumming the $E000 ROM is not sensible...
+E1CC                          ; TODO: @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+E1CC                          ; TODO: @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+E1CC                          ; Add a check that the key matrix works? Scan matrix and display the results (in hex) on a line on the screen?
+E1CC                          ; TODO: @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+E1CC                          ; *************************************************************************************************
+E1CC                          ; ***                                                                                           ***
+E1CC                          ; ***  Perform a 'long' delay to permit the human to view the results displayed on the screen.  ***
+E1CC                          ; ***                                                                                           ***
+E1CC                          ; *************************************************************************************************
+E1CC   A2 00                  LDX   #dlyx   ; Inner delay count.
+E1CE   A0 00                  LDY   #dlyy   ; Outer delay count.
+E1D0                          ; 
+E1D0                DELAYLOOP5:   
+E1D0   BD 00 00               LDA   mem0,x   ; Pick up a 'dummy' value from memory.
+E1D3   E8                     INX   ; Increment the inner delay count.
+E1D4   D0 FA                  BNE   delayloop5   ; Have we reached the end? If not, keep looping until we have.
+E1D6   C8                     INY   ; Increment the outer delay count.
+E1D7   D0 F7                  BNE   delayloop5   ; Have we reached the end? If not, keep looping until we have.
+E1D9                          ; ****************************************
+E1D9                          ; ***                                  ***
+E1D9                          ; ***  Keep repeating for eternity...  ***
+E1D9                          ; ***                                  ***
+E1D9                          ; ****************************************
+E1D9   4C CC E1               JMP   dochecksum   ; Play it again Sam...
+E1DC                          ; 
+E1DC                          ; **************
+E1DC                          ; ***        ***
+E1DC                          ; ***  END.  ***
+E1DC                          ; ***        ***
+E1DC                          ; **************
+
+
+VERSION:            0002 DEFINED AT LINE 5
+                    > USED AT LINE 37
+CRTC_INIT:          E005 DEFINED AT LINE 92
+                    > USED AT LINE 185
+DLYX:               0000 DEFINED AT LINE 125
+DLYY:               0000 DEFINED AT LINE 126
+VDU0:               8000 DEFINED AT LINE 131
+                    > USED AT LINE 220
+                    > USED AT LINE 268
+                    > USED AT LINE 393
+                    > USED AT LINE 509
+                    > USED AT LINE 584
+                    > USED AT LINE 634
+VDU1:               8100 DEFINED AT LINE 132
+                    > USED AT LINE 221
+                    > USED AT LINE 289
+                    > USED AT LINE 414
+                    > USED AT LINE 524
+                    > USED AT LINE 585
+                    > USED AT LINE 635
+VDU2:               8200 DEFINED AT LINE 133
+                    > USED AT LINE 222
+                    > USED AT LINE 310
+                    > USED AT LINE 435
+                    > USED AT LINE 539
+                    > USED AT LINE 586
+                    > USED AT LINE 636
+VDU3:               8300 DEFINED AT LINE 134
+                    > USED AT LINE 223
+                    > USED AT LINE 331
+                    > USED AT LINE 456
+                    > USED AT LINE 554
+                    > USED AT LINE 587
+                    > USED AT LINE 637
+MEM0:               0000 DEFINED AT LINE 139
+                    > USED AT LINE 244
+                    > USED AT LINE 261
+                    > USED AT LINE 345
+                    > USED AT LINE 369
+                    > USED AT LINE 386
+                    > USED AT LINE 470
+                    > USED AT LINE 485
+                    > USED AT LINE 502
+                    > USED AT LINE 568
+                    > USED AT LINE 601
+                    > USED AT LINE 665
+MEM1:               0100 DEFINED AT LINE 140
+                    > USED AT LINE 245
+                    > USED AT LINE 282
+                    > USED AT LINE 370
+                    > USED AT LINE 407
+                    > USED AT LINE 486
+                    > USED AT LINE 517
+MEM2:               0200 DEFINED AT LINE 141
+                    > USED AT LINE 246
+                    > USED AT LINE 303
+                    > USED AT LINE 371
+                    > USED AT LINE 428
+                    > USED AT LINE 487
+                    > USED AT LINE 532
+MEM3:               0300 DEFINED AT LINE 142
+                    > USED AT LINE 247
+                    > USED AT LINE 324
+                    > USED AT LINE 372
+                    > USED AT LINE 449
+                    > USED AT LINE 488
+                    > USED AT LINE 547
+NONE:               000E DEFINED AT LINE 147
+BAD1:               0002 DEFINED AT LINE 148
+GUD1:               0007 DEFINED AT LINE 149
+BAD2:               0042 DEFINED AT LINE 150
+GUD2:               0047 DEFINED AT LINE 151
+SPC:                0020 DEFINED AT LINE 152
+TST1:               0055 DEFINED AT LINE 157
+TST2:               00AA DEFINED AT LINE 158
+CRTCA:              E880 DEFINED AT LINE 163
+                    > USED AT LINE 186
+CRTCD:              E881 DEFINED AT LINE 164
+                    > USED AT LINE 187
+SENSEPIA:           E810 DEFINED AT LINE 169
+                    > USED AT LINE 619
+DIAGBIT:            0080 DEFINED AT LINE 170
+START:              E017 DEFINED AT LINE 178
+                    > USED AT LINE 35
+MORE_CRTC:          E019 DEFINED AT LINE 184
+                    > USED AT LINE 190
+AGAIN:              E02A DEFINED AT LINE 208
+                    > USED AT LINE 191
+                    > USED AT LINE 622
+DUMPSCREEN:         E02E DEFINED AT LINE 219
+                    > USED AT LINE 225
+MEMWRITE85:         E041 DEFINED AT LINE 243
+                    > USED AT LINE 249
+MEMREAD850:         E052 DEFINED AT LINE 259
+                    > USED AT LINE 270
+MEMOKAY850:         E05D DEFINED AT LINE 266
+                    > USED AT LINE 263
+MEMREAD851:         E066 DEFINED AT LINE 280
+                    > USED AT LINE 291
+MEMOKAY851:         E071 DEFINED AT LINE 287
+                    > USED AT LINE 284
+MEMREAD852:         E07A DEFINED AT LINE 301
+                    > USED AT LINE 312
+MEMOKAY852:         E085 DEFINED AT LINE 308
+                    > USED AT LINE 305
+MEMREAD853:         E08E DEFINED AT LINE 322
+                    > USED AT LINE 333
+MEMOKAY853:         E099 DEFINED AT LINE 329
+                    > USED AT LINE 326
+DELAYLOOP1:         E0A4 DEFINED AT LINE 344
+                    > USED AT LINE 347
+                    > USED AT LINE 349
+MEMWRITE170:        E0B1 DEFINED AT LINE 368
+                    > USED AT LINE 374
+MEMREAD1700:        E0C2 DEFINED AT LINE 384
+                    > USED AT LINE 395
+MEMOKAY1700:        E0CD DEFINED AT LINE 391
+                    > USED AT LINE 388
+MEMREAD1701:        E0D6 DEFINED AT LINE 405
+                    > USED AT LINE 416
+MEMOKAY1701:        E0E1 DEFINED AT LINE 412
+                    > USED AT LINE 409
+MEMREAD1702:        E0EA DEFINED AT LINE 426
+                    > USED AT LINE 437
+MEMOKAY1702:        E0F5 DEFINED AT LINE 433
+                    > USED AT LINE 430
+MEMREAD1703:        E0FE DEFINED AT LINE 447
+                    > USED AT LINE 458
+MEMOKAY1703:        E109 DEFINED AT LINE 454
+                    > USED AT LINE 451
+DELAYLOOP2:         E114 DEFINED AT LINE 469
+                    > USED AT LINE 472
+                    > USED AT LINE 474
+ADD2MEM:            E11F DEFINED AT LINE 483
+                    > USED AT LINE 490
+MEMVAL0:            E131 DEFINED AT LINE 500
+                    > USED AT LINE 511
+MEMVAL0G:           E13C DEFINED AT LINE 506
+                    > USED AT LINE 503
+MEMVAL0C:           E13E DEFINED AT LINE 508
+                    > USED AT LINE 505
+MEMVAL1:            E146 DEFINED AT LINE 515
+                    > USED AT LINE 526
+MEMVAL1G:           E151 DEFINED AT LINE 521
+                    > USED AT LINE 518
+MEMVAL1C:           E153 DEFINED AT LINE 523
+                    > USED AT LINE 520
+MEMVAL2:            E15B DEFINED AT LINE 530
+                    > USED AT LINE 541
+MEMVAL2G:           E166 DEFINED AT LINE 536
+                    > USED AT LINE 533
+MEMVAL2C:           E168 DEFINED AT LINE 538
+                    > USED AT LINE 535
+MEMVAL3:            E170 DEFINED AT LINE 545
+                    > USED AT LINE 556
+MEMVAL3G:           E17B DEFINED AT LINE 551
+                    > USED AT LINE 548
+MEMVAL3C:           E17D DEFINED AT LINE 553
+                    > USED AT LINE 550
+DELAYLOOP3:         E187 DEFINED AT LINE 567
+                    > USED AT LINE 570
+                    > USED AT LINE 572
+CHARSET:            E192 DEFINED AT LINE 582
+                    > USED AT LINE 589
+DELAYLOOP4:         E1A6 DEFINED AT LINE 600
+                    > USED AT LINE 603
+                    > USED AT LINE 605
+CLEARSCREEN:        E1BD DEFINED AT LINE 633
+                    > USED AT LINE 639
+DOCHECKSUM:         E1CC DEFINED AT LINE 641
+                    > USED AT LINE 621
+                    > USED AT LINE 677
+DELAYLOOP5:         E1D0 DEFINED AT LINE 664
+                    > USED AT LINE 667
+                    > USED AT LINE 669

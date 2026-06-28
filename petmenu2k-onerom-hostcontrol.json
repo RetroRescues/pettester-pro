@@ -1,0 +1,97 @@
+{
+  "$schema": "https://images.onerom.org/configs/schema.json",
+  "version": 1,
+  "name": "PETMENU2K with host-control",
+  "description": "PET 2K EDIT ROM boot menu with One ROM USB and host-control plugins enabled.",
+  "categories": [
+    "computer",
+    "firmware",
+    "commodore",
+    "pet"
+  ],
+  "chip_sets": [
+    {
+      "type": "single",
+      "description": "One ROM USB system plugin",
+      "chips": [
+        {
+          "description": "USB system plugin",
+          "file": "https://images.onerom.org/plugins/system/usb/v0.1.2/plugin.bin",
+          "type": "system_plugin"
+        }
+      ]
+    },
+    {
+      "type": "single",
+      "description": "One ROM RBCP host-control user plugin",
+      "chips": [
+        {
+          "description": "host-control user plugin",
+          "file": "https://images.onerom.org/plugins/user/host-control/v0.1.0/plugin.bin",
+          "type": "user_plugin"
+        }
+      ]
+    },
+    {
+      "type": "single",
+      "description": "Slot 0 - PETMENU2K boot menu",
+      "chips": [
+        {
+          "description": "PETMENU2K boot menu",
+          "label": "PETMENU2K",
+          "file": "c:/pet/petmenu2k.bin",
+          "type": "2716"
+        }
+      ]
+    },
+    {
+      "type": "single",
+      "description": "Slot 1 - normal PET EDIT ROM",
+      "chips": [
+        {
+          "description": "Normal PET EDIT ROM",
+          "label": "EDIT ROM",
+          "file": "c:/pet/edit.bin",
+          "type": "2716"
+        }
+      ]
+    },
+    {
+      "type": "single",
+      "description": "Slot 2 - PETTESTER V6 RetroRescues build",
+      "chips": [
+        {
+          "description": "PETTESTER V6 RetroRescues build",
+          "label": "PETTESTER V6",
+          "file": "c:/pet/pettester.bin",
+          "type": "2716"
+        }
+      ]
+    },
+    {
+      "type": "single",
+      "description": "Slot 3 - PET IEEE test ROM",
+      "chips": [
+        {
+          "description": "PET IEEE test ROM",
+          "label": "IEEE TEST",
+          "file": "c:/pet/petieee2k.bin",
+          "type": "2716"
+        }
+      ]
+    },
+    {
+      "type": "single",
+      "description": "Slot 4 - PET ROM ID / CRC checker",
+      "chips": [
+        {
+          "description": "PET ROM ID / CRC checker",
+          "label": "ROM ID CRC",
+          "file": "c:/pet/petromid2k.bin",
+          "type": "2716"
+        }
+      ]
+    }
+  ],
+  "notes": "The first two chip_sets are the One ROM plugins needed by the RBCP bootloader path. Without host-control, PETMENU2K will reach its BBB diagnostic instead of switching slots."
+}

@@ -1,0 +1,51 @@
+{
+  "$schema": "https://images.onerom.org/configs/schema.json",
+  "version": 1,
+  "name": "PET EDIT ROM Menu + PETTESTER V6",
+  "description": "Three 2KB PET EDIT ROM images for the PETMENU2K RBCP boot menu. Slot 0 is the menu, slot 1 is normal EDIT ROM, slot 2 is PETTESTER V6.",
+  "categories": [
+    "computer",
+    "firmware",
+    "commodore",
+    "pet"
+  ],
+  "rom_sets": [
+    {
+      "type": "single",
+      "description": "Slot 0 - PETMENU2K boot menu",
+      "roms": [
+        {
+          "description": "PETMENU2K boot menu",
+          "file": "C:/Users/Ed/Documents/SDL2VICE-3.10-win64/PET/petmenu2k.bin",
+          "type": "2316",
+          "cs1": "active_low"
+        }
+      ]
+    },
+    {
+      "type": "single",
+      "description": "Slot 1 - normal EDIT ROM",
+      "roms": [
+        {
+          "description": "PET BASIC 4 40 column normal keyboard 50Hz EDIT ROM",
+          "file": "C:/Users/Ed/Documents/SDL2VICE-3.10-win64/PET/edit-4-40-n-50Hz.901498-01.bin",
+          "type": "2316",
+          "cs1": "active_low"
+        }
+      ]
+    },
+    {
+      "type": "single",
+      "description": "Slot 2 - PETTESTER V6",
+      "roms": [
+        {
+          "description": "PETTESTER V6 RetroRescues build",
+          "file": "C:/Users/Ed/Documents/SDL2VICE-3.10-win64/PET/pettester.rebuilt.bin",
+          "type": "2316",
+          "cs1": "active_low"
+        }
+      ]
+    }
+  ],
+  "notes": "Enable/include the host-control plugin when programming. PETMENU2K uses RBCP to load flash slot 1 or 2 into RAM slot 1, then switch to it. Keep One ROM image-select jumpers set to slot 0 so the menu boots first."
+}

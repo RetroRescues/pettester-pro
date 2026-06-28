@@ -1,0 +1,15 @@
+# Local build byproducts that are not release ROM names
+/*.labels
+/*.listing.txt
+/*.tmp.bin
+/*.test.bin
+/*.rebuilt*.bin
+
+# Local emulator/runtime files
+/*.vrs
+*.log
+
+# OS/editor noise
+.DS_Store
+Thumbs.db
+*.bak

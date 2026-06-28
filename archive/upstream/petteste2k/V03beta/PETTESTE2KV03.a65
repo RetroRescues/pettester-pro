@@ -1,0 +1,1041 @@
+
+    ; PETTESTE2KV03.a65
+    ; =================
+    ;
+VERSION EQU $03
+
+    ; This replaces the 2K PET EDIT ROM located at $E000.
+    ;
+    org $E000
+
+    ; Version: 1.0
+    ;   Date : 14th July 2018.
+    ; Author : Dave Roberts. Mainly plagiarised from Eudimorphodon with bits copied from dave_m...
+    ; Change : First creation.
+    ;
+    ; Version: 2.0
+    ;   Date : 17th July 2018.
+    ; Author : Dave Roberts.
+    ; Change : Add $00 to $FF 1K memory test.
+	;
+    ; Version: 3.0
+    ;   Date : 29th July 2018.
+    ; Author : Dave Roberts.
+    ; Change : Some major edits....
+
+
+    ; Assemble with https://www.asm80.com
+
+    ; This is the entry vector into the initialisation portion
+    ; of the EDIT ROM. It is called by the kernel ROM ($F000)
+    ; after a small amount of processing (i.e. maskable interrupts
+    ; have been inhibited and the decimal arithmetic flag cleared).
+    ;
+    ; This entry point is CALLED by the kernel ROM - but the 
+    ; page 0 RAM may not be working (so the return address may not 
+    ; actually work). Anyhow - we have no plans of returning anyhow...
+    ;
+    ; Bypass any fixed constants stored in the ROM (e.g. the
+    ; initialisation values for the CRT Controller).
+    ;  
+    jmp	start
+    ;
+    db 'V', VERSION
+    
+    ; Initialisation table for the CRT Controller. One byte for 
+    ; each register (in numeric order starting at register 0).
+    ;
+
+; Table obtained from http://cbm-hackers.2304266.n4.nabble.com/PET-50Hz-editor-ROMS-td4658493.html
+;
+;           PET/CBM PET/CBM PET/CBM  8296D   NTSC     PAL 
+;            60 Hz   50 Hz   50 Hz   50 HZ   60 Hz   50 Hz 
+;
+; Business 
+; ========
+;
+; reg.  0     49      49      50      48      63      63 
+; reg.  1     40      40      40      40      40      40 
+; reg.  2     41      41      40      44      49      50 
+; reg.  3     15      15       8       8      15       8 
+; reg.  4     32      39      38      32      31      32 
+; reg.  5      3       0       2       9       7      16 
+; reg.  6     25      25      25      25      25      25 
+; reg.  7     29      32      32      29      29      29 
+; reg.  8      0       0       0       0       0       0 
+; reg.  9      9       9       9       9       7       8 
+; reg. 10      0       0       0       0       0       0 
+; reg. 11      0       0       0       0       0       0 
+; reg. 12     16      16      16      16      16      16 
+; reg. 13      0       0       0       0       0       0 
+; reg. 14      0       0       0       0       0       0 
+; reg. 15      0       0       0       0       0       0 
+; reg. 16      0       0       0       0       0       0 
+; reg. 17      0       0       0       0       0       0 
+;
+; Graphic 
+; =======
+;
+; reg.  0     49      49      50      48      63      63 
+; reg.  1     40      40      40      40      40      40 
+; reg.  2     41      41      40      44      49      50 
+; reg.  3     15      15       8       8      15       8 
+; reg.  4     40      49      48      41      31      36 
+; reg.  5      5       0       0       3       7      17 
+; reg.  6     25      25      25      25      25      25 
+; reg.  7     33      37      37      34      29      32 
+; reg.  8      0       0       0       0       0       0 
+; reg.  9      7       7       7       7       7       7 
+; reg. 10      0       0       0       0       0       0 
+; reg. 11      0       0       0       0       0       0 
+; reg. 12     16      16      16      16      16      16 
+; reg. 13      0       0       0       0       0       0 
+; reg. 14      0       0       0       0       0       0 
+; reg. 15      0       0       0       0       0       0 
+; reg. 16      0       0       0       0       0       0 
+; reg. 17      0       0       0       0       0       0 
+
+CRTC_INIT:
+
+    ; PET/CBM 60Hz Business.
+    ; ======================
+    ;
+    db 49	; Register 0.
+    db 40	; Register 1.
+    db 41	; Register 2.
+    db 15	; Register 3.
+    db 32	; Register 4.
+    db 	3	; Register 5.
+    db 25	; Register 6.
+    db 29	; Register 7.
+    db 	0	; Register 8.
+    db 	9	; Register 9.
+    db 	0	; Register 10.
+    db 	0	; Register 11.
+    db 16	; Register 12.
+    db 	0	; Register 13.
+    db 	0	; Register 14.
+    db 	0	; Register 15.
+    db 	0	; Register 16.
+    db 	0	; Register 17.
+
+    ; ******************
+    ; ***            ***
+    ; ***  EQUATES.  ***
+    ; ***            ***
+    ; ******************
+
+    ; DELAY parameters. 
+    ; =================
+
+dlyx equ $00		; Inner delay counter.
+dlyy equ $00		; Outer delay counter.
+
+    ; VDU memory.
+    ; ===========
+
+vdu0 equ $8000		; Screen block 0.
+vdu1 equ $8100		; Screen block 1.
+vdu2 equ $8200		; Screen block 2.
+vdu3 equ $8300		; Screen block 3.
+vdu4 equ $8400		; Screen block 4.
+vdu5 equ $8500		; Screen block 5.
+vdu6 equ $8600		; Screen block 6.
+vdu7 equ $8700		; Screen block 7.
+
+    ; Low RAM memory.
+    ; ===============
+
+mem0 equ $0000		; Memory block 0.
+mem1 equ $0100		; Memory block 1.
+
+    ; PETSCII character codes.
+    ; ========================
+
+gud1 equ $07		; PETSCII 'G' character code.
+bad1 equ $02		; PETSCII 'B' character code.
+spc  equ $20		; PETSCII ' ' character code.
+dot  equ $2E		; PETSCII '.' character code.
+
+PETSCII_EQ	equ	$3D	; PETSCII '='.
+
+    ; Memory test values.
+    ; ===================
+
+tst55 equ $55		; Memory test value 1.		
+tstAA equ $AA		; Memory test value 2.
+
+    ; CRT Controller addresses.
+    ; =========================
+
+crtca equ $E880		; CRT Controller address register.
+crtcd equ $E881		; CRT Controller data    register.
+
+	; PIA addresses.
+	; ==============
+	
+pia1	equ	$E810
+
+    ; ***************************************************
+    ; ***                                             ***
+    ; ***  THIS IS THE REAL ENTRY POINT OF THE TEST.  ***
+    ; ***                                             ***
+    ; ***************************************************
+
+start:
+
+    ; Initialise the CRTC (if it exists).
+    ; ===================================
+    
+    ldx #0			; Start with CRT Controller register 0.
+more_crtc:
+    lda CRTC_INIT,x	; Pick up the initialisation value for this register.
+    stx crtca		; Tell the CRT Controller which register we are going to initialise.
+    sta crtcd		; Initialisation value for the register just defined.
+    inx				; Index the next CRT Controller register.
+    cpx #12h		; Have we finished initialising the CRT Controller?
+    bne more_crtc	; If not, skip back and initialise more registers.
+	
+    ; The CRT Controller should be now initialised and displaying random rubbish 
+    ; on the screen! Of course, the CRT itself may need time to 'warm up' before
+    ; this rubbish can be seen!
+
+	; *************************************************************************************
+	; ***                                                                               ***
+	; ***  Write known contents to the screen (all of the characters from $00 to $FF).  ***
+	; ***                                                                               ***
+	; *************************************************************************************
+	
+TEST_VDU:
+
+	ldx	#0			; Starting index into the blocks of screen memory & the character itself.
+more_vduW:
+	txa				; Pick up the index (which is also the character to display).
+	sta	vdu0,x		; Screen block 0.
+	sta	vdu1,x		; Screen block 1.
+	sta	vdu2,x		; Screen block 2.
+	sta	vdu3,x		; Screen block 3.
+	sta	vdu4,x		; Screen block 4.
+	sta	vdu5,x		; Screen block 5.
+	sta	vdu6,x		; Screen block 6.
+	sta	vdu7,x		; Screen block 7.
+	inx				; Move on to the next location in the screen memory.
+	bne	more_vduW	; Keep looping until we have finished.
+	
+	; Note that this assumes an 80 column VDU. If the PET is 40 columns - this shouldn't matter.
+	; (it will just overwrite what has been written previously).
+	
+	; Check that the first 1K of screen memory has taken the value that has been written.
+	; If not - keep looping. If it has, perform a delay and move on to the next test.
+	
+	ldx	#0			; Starting index into the blocks of screen memory & the character itself.
+more_vduR:
+	txa				; Pick up the index (which is also the character to check for).
+	cmp	vdu0,x		; Check screen block 0.
+	bne	TEST_VDU	; If not the same, keep looping.
+	cmp	vdu1,x		; Check screen block 1.
+	bne	TEST_VDU	; If not the same, keep looping.
+	cmp	vdu2,x		; Check screen block 2.
+	bne	TEST_VDU	; If not the same, keep looping.
+	cmp	vdu3,x		; Check screen block 3.
+	bne	TEST_VDU	; If not the same, keep looping.
+	inx				; Move on to the next location in the screen memory.
+	bne	more_vduR	; Keep looping until we have finished.
+	
+	; The first 1K of screen memory appears to be OK. If we have a 2K screen (80 column PET)
+	; then there is the possibility that the second 1K could be faulty.
+
+    ; *************************************************************************************************
+    ; ***                                                                                           ***
+    ; ***  Perform a 'long' delay to permit the human to view the results displayed on the screen.  ***
+    ; ***                                                                                           ***
+    ; *************************************************************************************************
+
+    ldx #dlyx		; Inner delay count.
+    ldy #dlyy		; Outer delay count.
+		
+delayloop1:
+    lda mem0,x		; Pick up a 'dummy' value from memory.
+    inx				; Increment the inner delay count.
+    bne delayloop1	; Have we reached the end? If not, keep looping until we have.
+    iny				; Increment the outer delay count.
+    bne delayloop1	; Have we reached the end? If not, keep looping until we have.
+
+    ; ***************************************************************
+    ; ***                                                         ***
+    ; ***  Initialise Pages 0 and 1 of memory to 55h = 01010101.  ***
+    ; ***                                                         ***
+    ; ***************************************************************
+
+    ; Register A contains the value to write into memory. A value of 
+    ; 55 (hex) is used which equates to binary 01010101 (i.e. alternating
+    ; 1's and 0's).
+
+TEST_55AA:
+
+	cld				; The D flag (decimal) is used to indicate a fault (i.e. to 
+					; continuously repeat this set of tests if an error is detected).
+					 
+    lda #tst55		; Value to write into memory blocks (01010101).
+    ldx #0			; Block index.
+	
+memwrite55a:
+    sta mem0,x		; Block 0 of memory.
+    sta mem1,x		; Block 1 of memory.
+    inx				; Move on to the next byte in the memory block.
+    bne memwrite55a	; Have we reached the end? If not, keep looping until we have.
+
+    ; *****************************************************
+    ; ***                                               ***
+    ; ***  Test memory block 0 for the value we wrote.  ***
+    ; ***                                               ***
+    ; *****************************************************
+
+    ldx #0			; Memory block index. X should be 0 anyhow at this point...
+	
+memread55a:
+    ldy #gud1		; PETSCII character 'G' (standing for Good). Default memory status.
+    lda mem0,x		; Pick up the value from memory block 0.
+    cmp #tst55		; Is the value what we expect?
+    beq memread55b	; YES - OK
+    ; Memory value was BAD.
+    ldy #bad1		; PETSCII character 'B' (standing for Bad). Overwrite the default.
+    sed				; Flag an error in the test for later.
+memread55b:
+    tya				; Recover the status character.
+    sta vdu0,x		; Store the status character in A to the corresponding memory location in block 0 of the screen. 
+    inx				; Move on to the next byte in the memory block.
+    bne memread55a	; Have we reached the end? If not, keep looping until we have.
+
+    ; *****************************************************
+    ; ***                                               ***
+    ; ***  Test memory block 1 for the value we wrote.  ***
+    ; ***                                               ***
+    ; *****************************************************
+
+    ldx #0			; Memory block index. X should be 0 anyhow at this point...
+	
+memread55c:
+    ldy #gud1		; PETSCII character 'G' (standing for Good). Default memory status.
+    lda mem1,x		; Pick up the value from memory block 1.
+    cmp #tst55		; Is the value what we expect?
+    beq memread55d	; YES - OK
+    ; Memory value was BAD.
+    ldy #bad1		; PETSCII character 'B' (standing for Bad). Overwrite the default.
+    sed				; Flag an error in the test for later.
+memread55d:
+    tya				; Recover the status character.
+    sta vdu1,x		; Store the status character in A to the corresponding memory location in block 1 of the screen. 
+    inx				; Move on to the next byte in the memory block.
+    bne memread55c	; Have we reached the end? If not, keep looping until we have.
+
+    ; **************************************************************
+    ; ***                                                        ***
+    ; ***  Initialise Page 0 and 1 of memory to AAh = 10101010.  ***
+    ; ***                                                        ***
+    ; **************************************************************
+
+    ; Register A contains the value to write into memory. A value of 
+    ; AA (hex) is used which equates to binary 10101010 (i.e. alternating
+    ; 1's and 0's).
+    
+    lda #tstAA		; Value to write into memory blocks (10101010).
+    ldx #0			; Block index.
+	
+memwriteAAa:
+    sta mem0,x		; Block 0 of memory.
+    sta mem1,x		; Block 1 of memory.
+    inx				; Move on to the next byte in the memory block.
+    bne memwriteAAa	; Have we reached the end? If not, keep looping until we have.
+
+    ; *****************************************************
+    ; ***                                               ***
+    ; ***  Test memory block 0 for the value we wrote.  ***
+    ; ***                                               ***
+    ; *****************************************************
+
+    ldx #0			; Memory block index. X should be 0 anyhow at this point...
+	
+memreadAAa:
+    ldy #gud1		; PETSCII character 'G' (standing for Good). Default memory status.
+    lda mem0,x		; Pick up the value from memory block 0.
+    cmp #tstAA		; Is the value what we expect?
+    beq memreadAAb	; YES - OK
+    ; Memory value was BAD.
+    ldy #bad1		; PETSCII character 'B' (standing for Bad). Overwrite the default.
+    sed				; Flag an error in the test for later.
+memreadAAb:
+    tya				; Recover the status character.
+    sta vdu2,x		; Store the status character in A to the corresponding memory location in block 2 of the screen. 
+    inx				; Move on to the next byte in the memory block.
+    bne memreadAAa	; Have we reached the end? If not, keep looping until we have.
+
+    ; *****************************************************
+    ; ***                                               ***
+    ; ***  Test memory block 1 for the value we wrote.  ***
+    ; ***                                               ***
+    ; *****************************************************
+
+    ldx #0			; Memory block index. X should be 0 anyhow at this point...
+	
+memreadAAc:
+    ldy #gud1		; PETSCII character 'G' (standing for Good). Default memory status.
+    lda mem1,x		; Pick up the value from memory block 1.
+    cmp #tstAA		; Is the value what we expect?
+    beq memreadAAd	; YES - OK
+    ; Memory value was BAD.
+    ldy #bad1		; PETSCII character 'B' (standing for Bad). Overwrite the default.
+    sed				; Flag an error in the test for later.
+memreadAAd:
+    tya				; Recover the status character.
+    sta vdu3,x		; Store the status character in A to the corresponding memory location in block 3 of the screen. 
+    inx				; Move on to the next byte in the memory block.
+    bne memreadAAc	; Have we reached the end? If not, keep looping until we have.
+
+    ; *************************************************************************************************
+    ; ***                                                                                           ***
+    ; ***  Perform a 'long' delay to permit the human to view the results displayed on the screen.  ***
+    ; ***                                                                                           ***
+    ; *************************************************************************************************
+
+    ldx #dlyx		; Inner delay count.
+    ldy #dlyy		; Outer delay count.
+		
+delayloop2:
+    lda mem0,x		; Pick up a 'dummy' value from memory.
+    inx				; Increment the inner delay count.
+    bne delayloop2	; Have we reached the end? If not, keep looping until we have.
+    iny				; Increment the outer delay count.
+    bne delayloop2	; Have we reached the end? If not, keep looping until we have.
+
+	; ***********************************************************************
+	; ***                                                                 ***
+	; ***  Did an error occur? If so, keep repeating this bit of code...  ***
+	; ***                                                                 ***
+	; ***********************************************************************
+
+	; There is no instruction to test the state of the D flag. If the D flag
+	; is clear - then no error occurred. If the D flag is set - then an error occurred.
+	;
+	; We 'fake' a D flag test by seeing what happens if we add $01 to $99.
+	;
+	; If the carry flag becomes SET - this indicates DECIMAL mode is active and (therefore) the
+	; D flag is set thus indicating a fault has occurred.
+	;
+	; Conversely, if the carry flag is CLEAR - this indicates DECIMAL mode is not active and
+	; (therefore) the D flag is clear thus indicating no fault occurred.
+	 
+	lda	#$99		; $99 = 10011001
+	clc				; Clear the CARRY flag. 
+	adc	#1			; Add 1 to regsister 'A'.
+	bcc	OK_55AA		; If the carry flag is clear - no error was detected...
+	jmp	TEST_55AA	; Keep repeating the test as an error was detected. 
+
+OK_55AA:
+
+	; **********************************
+	; ***                            ***
+	; ***  Clear the entire screen.  ***
+	; ***                            ***
+	; **********************************
+	
+	ldx	#0			; Starting index into the blocks of screen memory.
+	lda	#spc		; PETSCII ' ' character.
+more_vduE:
+	sta	vdu0,x		; Screen block 0.
+	sta	vdu1,x		; Screen block 1.
+	sta	vdu2,x		; Screen block 2.
+	sta	vdu3,x		; Screen block 3.
+	sta	vdu4,x		; Screen block 4.
+	sta	vdu5,x		; Screen block 5.
+	sta	vdu6,x		; Screen block 6.
+	sta	vdu7,x		; Screen block 7.
+	inx				; Move on to the next location in the screen memory.
+	bne	more_vduE	; Keep looping until we have finished.
+
+    ; ************************************************************
+    ; ***                                                      ***
+    ; ***  Initialise pages 0 and 1 to repeats of $00 to $FF.  ***
+    ; ***                                                      ***
+    ; ************************************************************
+
+TEST_00FF:
+
+    ldx #0			; Memory index.
+add2mem:
+    txa				; Transfer the memory index from 'X' into 'A'.
+    sta mem0,x		; Block 0 of memory.
+    sta mem1,x		; Block 1 of memory.
+    inx				; Move index along.
+    bne add2mem		; Keep looping until finished.
+
+	cld				; The D flag (decimal) is used to indicate a fault (i.e. to 
+					; continuously repeat this set of tests if an error is detected).
+
+    ; *****************************************************
+    ; ***                                               ***
+    ; ***  Test memory block 0 for the value we wrote.  ***
+    ; ***                                               ***
+    ; *****************************************************
+
+    ldx #0			; Memory block index. X should be 0 anyhow at this point...
+	
+memread0Fa:
+    txa				; Transfer the memory index from X to A.
+    ldy #gud1		; PETSCII character 'G' (standing for Good). Default memory status.
+    cmp mem0,x		; Compare what is in memory to what we expect it to be (the address).
+    beq memread0Fb	; YES - OK
+    ; Memory value was BAD.
+    ldy #bad1		; PETSCII character 'B' (standing for Bad). Overwrite the default.
+    sed				; Flag an error in the test for later.
+    lda	mem0,x		; Pickup the character value in error.
+    sta	vdu1,x		; Store the actual value we found to the VDU memory - for diagnostic pusposes.
+memread0Fb:
+    tya				; Recover the status character.
+    sta vdu0,x		; Store the status character in A to the corresponding memory location in block 0 of the screen. 
+    inx				; Move on to the next byte in the memory block.
+    bne memread0Fa	; Have we reached the end? If not, keep looping until we have.
+
+    ; *****************************************************
+    ; ***                                               ***
+    ; ***  Test memory block 1 for the value we wrote.  ***
+    ; ***                                               ***
+    ; *****************************************************
+
+    ldx #0			; Memory block index. X should be 0 anyhow at this point...
+	
+memread0Fc:
+    txa				; Transfer the memory index from X to A.
+    ldy #gud1		; PETSCII character 'G' (standing for Good). Default memory status.
+    cmp mem1,x		; Compare what is in memory to what we expect it to be (the address).
+    beq memread0Fd	; YES - OK
+    ; Memory value was BAD.
+    ldy #bad1		; PETSCII character 'B' (standing for Bad). Overwrite the default.
+    sed				; Flag an error in the test for later.
+    lda	mem0,x		; Pickup the character value in error.
+    sta	vdu3,x		; Store the actual value we found to the VDU memory - for diagnostic pusposes.
+memread0Fd:
+    tya				; Recover the status character.
+    sta vdu2,x		; Store the status character in A to the corresponding memory location in block 2 of the screen. 
+    inx				; Move on to the next byte in the memory block.
+    bne memread0Fc	; Have we reached the end? If not, keep looping until we have.
+
+    ; *************************************************************************************************
+    ; ***                                                                                           ***
+    ; ***  Perform a 'long' delay to permit the human to view the results displayed on the screen.  ***
+    ; ***                                                                                           ***
+    ; *************************************************************************************************
+
+    ldx #dlyx		; Inner delay count.
+    ldy #dlyy		; Outer delay count.
+		
+delayloop3:
+    lda mem0,x		; Pick up a 'dummy' value from memory.
+    inx				; Increment the inner delay count.
+    bne delayloop3	; Have we reached the end? If not, keep looping until we have.
+    iny				; Increment the outer delay count.
+    bne delayloop3	; Have we reached the end? If not, keep looping until we have.
+
+	; ***********************************************************************
+	; ***                                                                 ***
+	; ***  Did an error occur? If so, keep repeating this bit of code...  ***
+	; ***                                                                 ***
+	; ***********************************************************************
+
+	; There is no instruction to test the state of the D flag. If the D flag
+	; is clear - then no error occurred. If the D flag is set - then an error occurred.
+	;
+	; We 'fake' a D flag test by seeing what happens if we add $01 to $99.
+	;
+	; If the carry flag becomes SET - this indicates DECIMAL mode is active and (therefore) the
+	; D flag is set thus indicating a fault has occurred.
+	;
+	; Conversely, if the carry flag is CLEAR - this indicates DECIMAL mode is not active and
+	; (therefore) the D flag is clear thus indicating no fault occurred.
+	 
+	lda	#$99		; $99 = 10011001
+	clc				; Clear the CARRY flag. 
+	adc	#1			; Add 1 to regsister 'A'.
+	bcc	OK_00FF		; If the carry flag is clear - no error was detected...
+	jmp	TEST_00FF	; Keep repeating the test as an error was detected. 
+
+OK_00FF:
+
+    ; ***************************************************************************************************
+    ; ***                                                                                             ***
+    ; ***  Prepare the screen. Blank except for block 0 containing all of the PETSCII character set.  ***
+    ; ***                                                                                             ***
+    ; ***************************************************************************************************
+
+	ldx	#0			; Starting index into the blocks of screen memory.
+more_vduZ:
+	lda	#spc		; PETSCII ' ' character initially for all VDU memory blocks.
+	sta	vdu0,x		; Screen block 0.
+	sta	vdu1,x		; Screen block 1.
+	sta	vdu2,x		; Screen block 2.
+	sta	vdu3,x		; Screen block 3.
+	sta	vdu4,x		; Screen block 4.
+	sta	vdu5,x		; Screen block 5.
+	sta	vdu6,x		; Screen block 6.
+	sta	vdu7,x		; Screen block 7.
+	txa				; The PETSCII character for VDU blocks 0 is the same as the index.
+	sta	vdu0,x		; Screen block 0.
+	inx				; Move on to the next location in the screen memory.
+	bne	more_vduZ	; Keep looping until we have finished.
+
+	; Initialise the stack pointer.
+	; =============================
+	;
+	ldx	#$FF		; Top of page 1.
+	txs				; Store to stack pointer.
+	
+	cld				; Lets switch off DECIMAL mode - just in case it was on by accident!
+	
+	; Initialise the keyboard PIA.
+	; ============================
+	;
+	; Port A.
+	; =======
+	;
+	lda	#$0F		; DDRA pins. 0=IN, 1=OUT. IIIIOOOO.
+	sta	pia1+0		; Initialise DDRA.
+	lda	#$04		; Change to data register - but no CA1/CA2 interrupts!
+	sta	pia1+1		; Output to CRA.
+	lda	#$0F		; Invalid code for the decimal keyboard row decoder.
+	sta	pia1+0		; Send to the keyboard PIA output port.
+	;
+	; Port B.
+	; =======
+	;
+	lda	#$00		; DDRB pins. 0=IN, 1=OUT. IIIIIIII.
+	sta	pia1+2		; Initialise DDRB.
+	lda	#$04		; Change to data register - but no CB1/CB2 interrupts!
+	sta	pia1+3		; Output to CRB.
+	
+	; ***************************************
+	; ***                                 ***
+	; ***  Zap out pages 0 and 1 to $00.  ***
+	; ***                                 ***
+	; ***************************************
+
+	ldx	#0			; Memory index.
+	lda	#0			; Zap all of memory to $00.
+	
+more_zap:	
+	sta	mem0,x		; Zap Page 0.
+	sta	mem1,x		; Zap page 1.
+	inx				; Move on to the next memory location within the block.
+	bne	more_zap	; Keep looping until completed.
+	
+    ; ****************************
+    ; ***                      ***
+    ; ***  Checksum the ROMs.  ***
+    ; ***                      ***
+    ; ****************************
+
+ROMLL	equ	0
+ROMHH	equ	1
+
+ROMSIZ	equ	2
+
+VDULL	equ	3
+VDUHH	equ	4
+
+TEMPA	equ	5
+
+CKSUMLL	equ	6
+CKSUMHH	equ	7
+
+KEYROM:
+
+	; ************************************************************************************
+	; ***                                                                              ***
+	; ***  Checksum each ROM. Note that checksumming the $E000 ROM is not sensible...  ***
+	; ***                                                                              ***
+	; ************************************************************************************
+
+	; Initialise where we are going to write the results to the screen.
+	; =================================================================
+	;
+	lda	#$40		; VDU screen low address.
+	sta	VDULL		; "   "   "   "   "   "
+	lda	#$81		; VDU screen high address.
+	sta	VDUHH		; "   "   "   "   "   "
+	
+	; Output some (helpful) text to the screen...
+	; ===========================================
+	;
+	ldx	#4			; Length of character string.
+	ldy	#0			; Index to string.
+ROMMSGa:
+	lda	ROMMSG,y	; Pickup the first/next character
+	jsr	OUTCHAR		; Display to screen.
+	iny				; Index to the next character.
+	dex				; One less character to output.
+	bne	ROMMSGa		; Loop until all done.	
+		 
+	lda	#$B0		; Checksum the 4K rom at BXXX.
+	jsr	ROMCKSUM	; Do it...
+	lda	#$C0		; Checksum the 4K rom at CXXX.
+	jsr	ROMCKSUM	; Do it...
+	lda	#$D0		; Checksum the 4K rom at DXXX.
+	jsr	ROMCKSUM	; Do it...
+	;
+	; No need to do EXXX as this is where our PETTEST is living. It also includes the PET I/O space...
+	;
+	lda	#$F0		; Checksum the 4K rom at FXXX.
+	jsr	ROMCKSUM	; Do it...
+	
+	; Check that the key matrix works. Scan matrix and display the results (in hex) on a line on the screen.
+
+	; Initialise where we are going to write the results to the screen.
+	; =================================================================
+	;
+	lda	#$90		; VDU screen low address.
+	sta	VDULL		; "   "   "   "   "   "
+	lda	#$81		; VDU screen high address.
+	sta	VDUHH		; "   "   "   "   "   "
+	
+	; Output some (helpful) text to the screen...
+	; ===========================================
+	;
+	ldx	#4			; Length of character string.
+	ldy	#0			; Index to string.
+KBDMSGa:
+	lda	KBDMSG,y	; Pickup the first/next character
+	jsr	OUTCHAR		; Display to screen.
+	iny				; Index to the next character.
+	dex				; One less character to output.
+	bne	KBDMSGa		; Loop until all done.	
+
+	jsr	KEYMAT		; Display the keyboard matrix.
+
+    ; ****************************************
+    ; ***                                  ***
+    ; ***  Keep repeating for eternity...  ***
+    ; ***                                  ***
+    ; ****************************************
+
+    jmp KEYROM		; Play it again Sam...
+	
+; **********************
+; ***                ***
+; ***  SUBROUTINES.  ***
+; ***                ***
+; **********************
+
+ROMCKSUM:
+
+	; Store the ROM we are performing a checksum on into page 0 memory.
+	;
+	sta	ROMHH
+	
+	; Display the ROM we are checksumming to the human...
+	;
+	jsr	OUTHEXAH	; The high nibble of register 'A' only.
+	
+	; Display an '=' sign...
+	;
+	lda	#PETSCII_EQ
+	jsr	OUTCHAR
+	
+	lda	#0			; Initialise the low byte of the ROM address in page 0 memory.
+	sta	ROMLL		; "   "   "   "   "   "   "   "   "   "   "   "   "   "   "
+	
+	lda	#$10		; Number of pages of 256 bytes in each 4K ROM. 16*256=4,096 = 0x10(00).
+	sta	ROMSIZ		; "   "   "   "   "   "   "   "   "   "   "
+		
+	lda	#0			; Initially zero the checksum value.
+	sta	CKSUMLL		; Low byte.
+	sta	CKSUMHH		; High byte.
+	
+	; Do the actual CHECKSUM!!!
+	; =========================
+	
+CKSUMouter:
+
+	ldy	#0			; First block byte index.
+
+CKSUMinner:
+
+	lda	(ROMLL),y	; Pick up the first/next byte of the block.
+	clc				; No carry flag.
+	adc	CKSUMLL		; Merge in to the checksum low byte.
+	sta CKSUMLL		; "   "   "   "   "   "   "   "   "
+	lda	#0			; Merge in any carry to the high byte of the checksum.
+	adc	CKSUMHH		; "   "   "   "   "   "   "   "   "   "   "   "   "   
+	sta	CKSUMHH		; "   "   "   "   "   "   "   "   "   "   "   "   "   
+	
+	iny				; Next byte of the block.
+	bne	CKSUMinner	; Keep looping until finished.
+	
+	; We have done at least one block of the checksum.
+	
+	; Increment the ROM block pointer for the next time around the loop (if any).
+	;
+	inc	ROMHH		; High byte of ROM address.
+	
+	; Decrement the number of 256-byte blocks (since we have just processed one block).
+	;
+	dec	ROMSIZ
+	
+	bne	CKSUMouter	; Keep looping until finished. ?????????????????
+	
+	; Done!!!
+	; =======
+
+	lda	CKSUMHH		; Pick up the high byte of the checksum.
+	jsr	OUTHEXA		; Display the result.
+	lda	CKSUMLL		; Pick up the low byte of the checksum.
+	jsr	OUTHEXA		; Display the result.
+	
+	jsr	OUTSPACE	; Output a space.
+	
+	rts				; Return back to caller.
+
+KEYMAT:
+
+	; Initialise the keyboard PIA for keyboard row 0.
+	; ===============================================
+	;
+	lda	#0			; Start at keyboard row 0.
+	sta	pia1+0		; Initialise the PIA.
+	
+	; Ten rows to the key matrix.
+	;
+	ldx	#10
+	
+KEYMATa:
+
+	; Simple delay to allow the keyboard logic to register any keypress.
+	;
+	ldy	#0			; Initial value.
+KEYMATb:
+	nop				; Do nothing...
+	nop				; Do nothing...
+	dey				; Decrement delay counter.
+	bne	KEYMATb		; Keep looping until the delay has expired.
+	
+	; Input the current keyboard matrix value from the PIA.
+	; =====================================================
+	;
+	lda	pia1+2		; PIA1 B data port.
+		
+	; Output the value to the screen.
+	;
+	jsr	OUTHEXA
+	
+	; Followed by a space character to format the screen in a simple manner.
+	;
+	jsr	OUTSPACE
+	
+	; Increment the keyboard row in the PIA.
+	; ======================================
+	;
+	inc	pia1+0
+	
+	dex				; One less row
+	bne	KEYMATa		; Loop until all done.
+	
+	; Deactivate the PIA keyboard row decoder.
+	; ========================================
+	;
+	lda	#$0F		; Not valid for the decimal keyboard decoder.
+	sta	pia1+0
+	
+	rts				; Return back to caller.
+
+	; ********************************************************************************************
+	; ***                                                                                      ***
+	; ***  Output the PETSCII character in register 'A' to the current location of the screen  ***
+	; ***                       and advance the screen pointer.                                ***
+	; ***                                                                                      ***
+	; ***       No registers are harmed during the execution of this subroutine!               ***
+	; ***                                                                                      ***
+	; ********************************************************************************************
+
+OUTCHAR:
+
+	; Store the registers onto the stack.
+	;
+	php				; Save the flags onto the stack.
+	pha				; Save register 'A' onto the stack.
+	sta	TEMPA		; Preserve the value of register 'A' for later.
+	txa				; Store register 'X' onto the stack.
+	pha				; "   "   "   "   "   "   "   "   "
+	tya				; Store register 'Y' onto the stack.
+	pha				; "   "   "   "   "   "   "   "   "
+	lda	TEMPA		; Recover the character to be output to the screen.
+	
+	ldy	#0			; Use register 'Y' as a 'dummy' index.
+	sta	(VDULL),y	; Store the character in 'A' to the screen.
+	
+	; Move the screen pointer on.
+	;
+	clc				; No carry
+	lda	#1			; + 1
+	adc	VDULL		; Low address.
+	sta	VDULL		; Low address.
+	lda	#0			; Just add any carry to the high address.
+	adc	VDUHH		; High address.
+	sta	VDUHH		; High address.
+	
+	; Recover the registers from the stack.
+	;
+	pla				; Y register.
+	tay				; "   "   "
+	pla				; X register.
+	tax				; "   "   "
+	pla				; 'A' register.
+	plp				; Flag register.
+	
+	; Return to caller.
+	;
+	rts				; Bye bye.
+	
+OUTSPACE:
+
+	pha				; Save register 'A' onto the stack.
+	
+	lda	#spc		; PETSCII ' '.
+	jsr	OUTCHAR		; And display it.
+	
+	pla				; Recover register 'A' from the stack.
+	
+	; Return to caller.
+	;
+	rts				; Bye bye.
+
+OUTHEXA:
+
+	; Output the high nibble of register 'A' in hexadecimal first.
+	;
+	jsr	OUTHEXAH
+	
+	; Followed by the low nibble of register 'A' in hexadecimal second.
+	;
+	jsr	OUTHEXAL
+	
+	; Return to caller.
+	;
+	rts				; Bye bye.
+
+OUTHEXAH:
+
+	; Store the registers onto the stack.
+	;
+	php				; Save the flags onto the stack.
+	pha				; Save register 'A' onto the stack.
+	sta	TEMPA		; Preserve the value of register 'A' for later.
+	txa				; Store register 'X' onto the stack.
+	pha				; "   "   "   "   "   "   "   "   "
+	tya				; Store register 'Y' onto the stack.
+	pha				; "   "   "   "   "   "   "   "   "
+	lda	TEMPA		; Recover the character to be output.
+
+	; Move the bits in register 'A' four bits to the right.
+	;
+	lsr
+	lsr
+	lsr
+	lsr
+	
+	; And display the lower nibble in hexadecimal to the screen.
+	;
+	jsr	OUTHEXAL 
+	
+	; Recover the registers from the stack.
+	;
+	pla				; Y register.
+	tay				; "   "   "
+	pla				; X register.
+	tax				; "   "   "
+	pla				; 'A' register.
+	plp				; Flag register.
+
+	; Return to caller.
+	;
+	rts				; Bye bye.
+
+OUTHEXAL:
+
+	; Store the registers onto the stack.
+	;
+	php				; Save the flags onto the stack.
+	pha				; Save register 'A' onto the stack.
+	sta	TEMPA		; Preserve the value of register 'A' for later.
+	txa				; Store register 'X' onto the stack.
+	pha				; "   "   "   "   "   "   "   "   "
+	tya				; Store register 'Y' onto the stack.
+	pha				; "   "   "   "   "   "   "   "   "
+	lda	TEMPA		; Recover the character to be output.
+
+	; Mask off all but the lower 4 bits of register 'A'.
+	;
+	and	#$0F		; 00001111.
+	
+	; Use 'Y' as the index register to lookup the corresponding PETSCII character code.
+	;
+	tay
+	
+	; Index the lookup table using register 'Y'.
+	;
+	lda	HEXLUT,y
+	
+	; Display the character (now in register 'A') on to the screen.
+	;
+	jsr	OUTCHAR
+
+	; Recover the registers from the stack.
+	;
+	pla				; Y register.
+	tay				; "   "   "
+	pla				; X register.
+	tax				; "   "   "
+	pla				; 'A' register.
+	plp				; Flag register.
+
+	; Return to caller.
+	;
+	rts				; Bye bye.
+	
+	; =================================================================================
+	
+	; Look up table to convert a 4-bit hexadecimal code into the corresponding
+	; PETSCII character to display on the Commodore PET screen.
+	
+HEXLUT:
+	db	$30			; '0'.
+	db	$31			; '1'.
+	db	$32			; '2'.
+	db	$33			; '3'.
+	db	$34			; '4'.
+	db	$35			; '5'.
+	db	$36			; '6'.
+	db	$37			; '7'.
+	db	$38			; '8'.
+	db	$39			; '9'.
+	db	$01			; 'A'.
+	db	$02			; 'B'.
+	db	$03			; 'C'.
+	db	$04			; 'D'.
+	db	$05			; 'E'.
+	db	$06			; 'F'.
+	
+ROMMSG:
+	db	$12			; 'R'.
+	db	$0F			; 'O'.
+	db	$0D			; 'M'.
+	db	$20			; ' '.
+	
+KBDMSG:
+	db	$0B			; 'K'.
+	db	$02			; 'B'.
+	db	$04			; 'D'.
+	db	$20			; ' '.
+	
+; **************
+; ***        ***
+; ***  END.  ***
+; ***        ***
+; **************

@@ -1,0 +1,12 @@
+* text=auto
+
+*.asm text
+*.bat text eol=crlf
+*.md text
+*.ps1 text
+*.json text
+Makefile text eol=lf
+
+*.bin binary
+*.pdf binary
+*.docx binary
