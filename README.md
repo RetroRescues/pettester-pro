@@ -20,7 +20,8 @@ The current precompiled 50 Hz ROM images are in `roms/`:
 | `roms/petromid2k.bin` | Standalone ROM CRC16 identifier. Computes CRCs for CPU-visible PET ROM ranges and names known matches from common PET ROM sets. |
 
 The matching sources are in `src/`. Most implementation notes are in the ASM
-files. The IEEE test translation notes are in `docs/IEEE_TEST_TRANSLATION.md`.
+files. More detailed notes are in `docs/`, including the menu behavior,
+standalone diagnostics, and IEEE test translation.
 
 ## TL;DR: One ROM Studio
 

@@ -8,14 +8,14 @@ This folder now has two standalone 2K EDIT-ROM diagnostics for use from the One 
 Build both with:
 
 ```powershell
-.\build-split-tests.bat
+.\scripts\build-split-tests.bat
 ```
 
-The build also copies both binaries into the VICE `PET` ROM folder.
+The build writes both binaries into `roms/`. If `PETTESTER_VICE_PET_DIR` is set, it also copies them into that VICE PET ROM directory.
 
 ## IEEE-488 Test
 
-Source: `petieee2k.asm`
+Source: `src/petieee2k.asm`
 
 This is the IEEE/GPIB test split out from PETTESTER and expanded into a clearer screen display. It loops continuously and shows:
 
@@ -32,7 +32,7 @@ The data test writes PIA #2 port B and reads PIA #2 port A. The control tests us
 
 ## ROM CRC16 ID Test
 
-Source: `petromid2k.asm`
+Source: `src/petromid2k.asm`
 
 This computes CRC-16/CCITT over CPU-visible ROM ranges and compares them with known values generated from:
 
@@ -40,7 +40,7 @@ This computes CRC-16/CCITT over CPU-visible ROM ranges and compares them with kn
 https://www.zimmers.net/anonftp/pub/cbm/firmware/computers/pet/
 ```
 
-The downloaded corpus is under:
+The original downloaded corpus used to generate the table is not included in the publish-facing repository. The development notes referred to it under:
 
 ```text
 pettester/rom-corpus/zimmers-pet/
