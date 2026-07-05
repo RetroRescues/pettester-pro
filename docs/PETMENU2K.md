@@ -22,6 +22,9 @@ Menu controls:
 - If no key is pressed, the menu counts down from 30 and boots the selected ROM.
 - The warmup timer now starts at 5.
 
+RETURN is checked in both known PET matrix positions used by normal 40-column
+graphics keyboards and business/80-column keyboards.
+
 The NV response back-channel uses `E7F0-E7FF`, which is kept as padding in the built 2 KB ROM.
 
 `roms/petromid2k.bin` reports CPU-visible ROM ranges only: `B000`, `C000`, `D000`, and `F000`. It cannot verify the original `E000` EDIT ROM because this diagnostic ROM is running in that socket, and it cannot verify the character ROM because that ROM is not CPU-readable like the main firmware ROMs.

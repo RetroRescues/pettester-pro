@@ -60,6 +60,7 @@ If not set it will continue to the menu. Only the Edit rom will currently set th
 Any other option will wipe the boot marker and always boot to menu.
 In the menu, any key (excluding RETURN) cycles the selected test,
 RETURN boots immediately, and the timeout boots the current selection.
+RETURN is recognized on normal 40-column graphics keyboards and on business/80-column keyboards.
 Default option is full Pettester rom and when initially compiled no boot marker will exist,
 Meaning this will boot pettester on a machine with no keyboard after a 30s delay.
 

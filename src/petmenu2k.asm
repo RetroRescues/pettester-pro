@@ -291,7 +291,23 @@ SCAN_HIT:
 	rts
 
 SCAN_ENTER:
+	; PET keyboard layouts differ: keep both known RETURN matrix positions.
 	lda	#3
+	jsr	SCAN_KEY_ROW
+	and	#$10		; business / 80-column RETURN
+	bne	SCAN_ENTER_YES
+	lda	#6
+	jsr	SCAN_KEY_ROW
+	and	#$20		; normal 40-column graphics RETURN
+	beq	SCAN_ENTER_NO
+SCAN_ENTER_YES:
+	sec
+	rts
+SCAN_ENTER_NO:
+	clc
+	rts
+
+SCAN_KEY_ROW:
 	sta	pia1+0
 	ldy	#0
 SCAN_ENTER_SETTLE:
@@ -299,12 +315,6 @@ SCAN_ENTER_SETTLE:
 	bne	SCAN_ENTER_SETTLE
 	lda	pia1+2
 	eor	#$FF
-	and	#$10
-	beq	SCAN_ENTER_NO
-	sec
-	rts
-SCAN_ENTER_NO:
-	clc
 	rts
 
 WAIT_NO_KEY:
