@@ -42,9 +42,15 @@ function Build-Rom {
     $output = Join-Path $outputDir $OutputName
     New-Item -ItemType Directory -Path $outputDir -Force | Out-Null
 
-    & $assemblerPath -output plain $source $output
-    if ($LASTEXITCODE -ne 0) {
-        exit $LASTEXITCODE
+    Push-Location $repo
+    try {
+        & $assemblerPath -output plain $source $output
+        if ($LASTEXITCODE -ne 0) {
+            exit $LASTEXITCODE
+        }
+    }
+    finally {
+        Pop-Location
     }
 
     $items = @($output)
@@ -60,3 +66,4 @@ function Build-Rom {
 
 Build-Rom "petieee2k.asm" "petieee2k.bin"
 Build-Rom "petromid2k.asm" "petromid2k.bin"
+Build-Rom "diagclipedit2k.asm" "diagclipedit2k.bin"

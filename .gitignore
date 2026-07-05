@@ -13,3 +13,6 @@
 .DS_Store
 Thumbs.db
 *.bak
+
+# Local scratch/import folders
+/new/

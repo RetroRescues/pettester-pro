@@ -10,9 +10,10 @@
 	;   slot 2: PETTESTER V6 ROM
 	;   slot 3: IEEE test ROM
 	;   slot 4: ROM ID / CRC ROM
+	;   slot 5: Diagnostic Clip wrapper ROM
 	;
 	; The ROM runs the early PETTESTER guard checks that matter before a menu:
-	; video RAM and page 0/1 RAM. If those pass, it shows a fixed four-choice
+	; video RAM and page 0/1 RAM. If those pass, it shows a fixed five-choice
 	; menu. Any key selects the next target; waiting boots the selection.
 
 SET_POS	.macro y,x
@@ -241,7 +242,7 @@ MENU_LOOP:
 	lda	BOOTSEL
 	clc
 	adc	#1
-	cmp	#5
+	cmp	#6
 	bcc	MENU_SELECT_OK
 	lda	#1
 MENU_SELECT_OK:
@@ -416,6 +417,10 @@ DRAW_MODE:
 	SET_STR MSG_MENU4_DEFAULT
 	jsr	PRINTZ
 
+	SET_POS 16,7
+	SET_STR MSG_MENU5_DEFAULT
+	jsr	PRINTZ
+
 	SET_POS 17,2
 	SET_STR MSG_HINT1
 	jsr	PRINTZ
@@ -428,26 +433,11 @@ DRAW_MODE:
 	jsr	UPDATE_MENU_COUNT
 
 	lda	BOOTSEL
-	cmp	#2
-	beq	DRAW_SEL2
-	cmp	#3
-	beq	DRAW_SEL3
-	cmp	#4
-	beq	DRAW_SEL4
+	asl
+	clc
+	adc	#6
+	tax
 	lda	#right
-	ldx	#8
-	bne	DRAW_SEL_MARK
-DRAW_SEL2:
-	lda	#right
-	ldx	#10
-	bne	DRAW_SEL_MARK
-DRAW_SEL3:
-	lda	#right
-	ldx	#12
-	bne	DRAW_SEL_MARK
-DRAW_SEL4:
-	lda	#right
-	ldx	#14
 DRAW_SEL_MARK:
 	pha
 	txa
@@ -601,10 +591,7 @@ COPY_DEC_LO:
 	; This code is copied to $0100 before it is run. It uses only relative
 	; branches and deliberate ROM reads at $E0xx, so it remains valid there.
 RAM_BOOT_SRC:
-RAM_LOAD1_TARGET_OPERAND	.equ	RAMBOOT + (RAM_LOAD1_TARGET_ARG - RAM_BOOT_SRC) + 1
-RAM_LOAD2_TARGET_OPERAND	.equ	RAMBOOT + (RAM_LOAD2_TARGET_ARG - RAM_BOOT_SRC) + 1
-RAM_LOAD3_TARGET_OPERAND	.equ	RAMBOOT + (RAM_LOAD3_TARGET_ARG - RAM_BOOT_SRC) + 1
-RAM_LOAD4_TARGET_OPERAND	.equ	RAMBOOT + (RAM_LOAD4_TARGET_ARG - RAM_BOOT_SRC) + 1
+RAM_LOAD_TARGET_OPERAND		.equ	RAMBOOT + (RAM_LOAD_TARGET_ARG - RAM_BOOT_SRC) + 1
 RAM_NVWRITE_BYTE_OPERAND	.equ	RAMBOOT + (RAM_NVWRITE_BYTE_ARG - RAM_BOOT_SRC) + 1
 RAM_NVWRITE_STAGE_OPERAND	.equ	RAMBOOT + (RAM_NVWRITE_STAGE_ARG - RAM_BOOT_SRC) + 1
 RAM_SWITCH_TARGET_OPERAND	.equ	RAMBOOT + (RAM_SWITCH_TARGET_ARG - RAM_BOOT_SRC) + 1
@@ -788,10 +775,7 @@ RAM_INFO_OK2:
 RAM_INFO_OK:
 	lda	EDITROM+$7F9	; active RAM slot
 	eor	#1
-	sta	RAM_LOAD1_TARGET_OPERAND
-	sta	RAM_LOAD2_TARGET_OPERAND
-	sta	RAM_LOAD3_TARGET_OPERAND
-	sta	RAM_LOAD4_TARGET_OPERAND
+	sta	RAM_LOAD_TARGET_OPERAND
 	sta	RAM_NVWRITE_STAGE_OPERAND
 	sta	RAM_SWITCH_TARGET_OPERAND
 
@@ -840,63 +824,16 @@ RAM_NVWRITE_PROG_LOOP:
 	jmp	RAM_FAIL_P
 
 RAM_SELECT_LOAD:
-	lda	BOOTSEL
-	cmp	#2
-	beq	RAM_LOAD2
-	cmp	#3
-	beq	RAM_LOAD3
-	cmp	#4
-	beq	RAM_LOAD4
-
-RAM_LOAD1:
 	lda	#12		; L
 	sta	RAM_PHASE
 	lda	EDITROM+$7F2
 	sta	$17
 	lda	EDITROM+$02	; MODIFY
 	lda	EDITROM+$02	; LOAD_SLOT
-RAM_LOAD1_TARGET_ARG:
+RAM_LOAD_TARGET_ARG:
 	lda	EDITROM+$00	; patched to inactive RAM slot
-	lda	EDITROM+$01	; flash slot 1
-	clc
-	bcc	RAM_LOAD_POLL
-
-RAM_LOAD2:
-	lda	#12		; L
-	sta	RAM_PHASE
-	lda	EDITROM+$7F2
-	sta	$17
-	lda	EDITROM+$02	; MODIFY
-	lda	EDITROM+$02	; LOAD_SLOT
-RAM_LOAD2_TARGET_ARG:
-	lda	EDITROM+$00	; patched to inactive RAM slot
-	lda	EDITROM+$02	; flash slot 2
-	clc
-	bcc	RAM_LOAD_POLL
-
-RAM_LOAD3:
-	lda	#12		; L
-	sta	RAM_PHASE
-	lda	EDITROM+$7F2
-	sta	$17
-	lda	EDITROM+$02	; MODIFY
-	lda	EDITROM+$02	; LOAD_SLOT
-RAM_LOAD3_TARGET_ARG:
-	lda	EDITROM+$00	; patched to inactive RAM slot
-	lda	EDITROM+$03	; flash slot 3
-	clc
-	bcc	RAM_LOAD_POLL
-
-RAM_LOAD4:
-	lda	#12		; L
-	sta	RAM_PHASE
-	lda	EDITROM+$7F2
-	sta	$17
-	lda	EDITROM+$02	; MODIFY
-	lda	EDITROM+$02	; LOAD_SLOT
-RAM_LOAD4_TARGET_ARG:
-	lda	EDITROM+$00	; patched to inactive RAM slot
-	lda	EDITROM+$04	; flash slot 4
+	ldx	BOOTSEL
+	lda	EDITROM,x	; flash slot matches menu selection
 
 RAM_LOAD_POLL:
 	ldx	#0
@@ -1034,7 +971,7 @@ WARMUP_DELAY:
 
 MSG_TITLE:	.byte	scr("   * RETRO RESCUES *"),0
 MSG_BRAND:	.byte	scr("PET ONE ROM BOOT MENU"),0
-MSG_VERSION:	.byte	scr("V1.01"),0
+MSG_VERSION:	.byte	scr("V1.02"),0
 MSG_TESTS:	.byte	scr("VDU + PAGE 0/1 RAM OK"),0
 MSG_MODE_40:	.byte	scr("40 COLUMN / 1K VIDEO RAM"),0
 MSG_MODE_80:	.byte	scr("80 COLUMN / 2K VIDEO RAM"),0
@@ -1042,6 +979,7 @@ MSG_MENU1_DEFAULT:	.byte	scr("NORMAL EDIT ROM"),0
 MSG_MENU2_DEFAULT:	.byte	scr("PETTESTER"),0
 MSG_MENU3_DEFAULT:	.byte	scr("IEEE-488 TEST"),0
 MSG_MENU4_DEFAULT:	.byte	scr("ROM CRC ID"),0
+MSG_MENU5_DEFAULT:	.byte	scr("DIAG CLIP"),0
 MSG_HINT1:	.byte	scr("KEY NEXT  ENTER BOOT"),0
 MSG_HINT2:	.byte	scr("NO KEY"),0
 MSG_COUNT:	.byte	scr("BOOT IN 30"),0

@@ -91,6 +91,18 @@
           "type": "2716"
         }
       ]
+    },
+    {
+      "type": "single",
+      "description": "Slot 5 - PET Diagnostic Clip wrapper",
+      "chips": [
+        {
+          "description": "PET Diagnostic Clip EDIT ROM wrapper",
+          "label": "DIAG CLIP",
+          "file": "c:/pet/diagclipedit2k.bin",
+          "type": "2716"
+        }
+      ]
     }
   ],
   "notes": "The first two chip_sets are the One ROM plugins needed by the RBCP bootloader path. Without host-control, PETMENU2K will reach its BBB diagnostic instead of switching slots."

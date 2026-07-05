@@ -18,6 +18,7 @@ The current precompiled 50 Hz ROM images are in `roms/`:
 | `roms/pettester.bin` | RetroRescues V6 PETTESTER build. Adds startup beep, simple 40/80 column VRAM detection, CRT warmup delay, and compact IEEE-488 self-test output. |
 | `roms/petieee2k.bin` | Standalone IEEE-488/GPIB diagnostic ROM with clearer per-line status display. |
 | `roms/petromid2k.bin` | Standalone ROM CRC16 identifier. Computes CRCs for CPU-visible PET ROM ranges and names known matches from common PET ROM sets. |
+| `roms/diagclipedit2k.bin` | Experimental EDIT-ROM wrapper for the Commodore Diagnostic Clip RAM-resident test body. |
 
 The matching sources are in `src/`. Most implementation notes are in the ASM
 files. More detailed notes are in `docs/`, including the menu behavior,
@@ -48,6 +49,7 @@ Expected flash layout:
 | 2 | `roms/pettester.bin` |
 | 3 | `roms/petieee2k.bin` |
 | 4 | `roms/petromid2k.bin` |
+| 5 | `roms/diagclipedit2k.bin` |
 
 The JSON currently references `c:/pet/*.bin`. Put the ROM files there, or edit
 the paths before compiling the One ROM image.
@@ -93,8 +95,9 @@ Make:
 make
 ```
 
-The PowerShell scripts can optionally copy built ROMs into a VICE PET ROM
-directory if `PETTESTER_VICE_PET_DIR` is set.
+The split-test script builds `petieee2k.bin`, `petromid2k.bin`, and
+`diagclipedit2k.bin`. The PowerShell scripts can optionally copy built ROMs into
+a VICE PET ROM directory if `PETTESTER_VICE_PET_DIR` is set.
 
 ## Archive
 

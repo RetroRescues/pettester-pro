@@ -1,17 +1,18 @@
 # Split PET Test ROMs
 
-This folder now has two standalone 2K EDIT-ROM diagnostics for use from the One ROM boot menu:
+This folder now has three standalone 2K EDIT-ROM diagnostics for use from the One ROM boot menu:
 
 - `petieee2k.bin`
 - `petromid2k.bin`
+- `diagclipedit2k.bin`
 
-Build both with:
+Build them with:
 
 ```powershell
 .\scripts\build-split-tests.bat
 ```
 
-The build writes both binaries into `roms/`. If `PETTESTER_VICE_PET_DIR` is set, it also copies them into that VICE PET ROM directory.
+The build writes the binaries into `roms/`. If `PETTESTER_VICE_PET_DIR` is set, it also copies them into that VICE PET ROM directory.
 
 ## IEEE-488 Test
 
@@ -67,3 +68,32 @@ The diagnostic ROM itself occupies `$E000`, so it cannot verify the machine's or
 - `F8`: `$F800-$FFFF`
 
 The first table contains 33 unique CPU-visible 2K/4K ROM contents from the corpus, excluding EDIT ROMs. CRC-16/CCITT was chosen because the old PETTESTER additive 16-bit checksum had collisions in the downloaded ROM set, while CRC-16/CCITT had none in this corpus.
+
+## Diagnostic Clip Wrapper
+
+Source: `src/diagclipedit2k.asm`
+
+This is an experimental proof-of-life wrapper for the Commodore Diagnostic Clip
+ROM. It is not a clean port yet.
+
+The original diagnostic clip starts at `$F000`, copies its main diagnostic body
+to RAM at `$0200`, asks the user to remove the CPU clip, then runs the RAM copy.
+This wrapper starts from the EDIT ROM entry point at `$E000`, copies the
+extracted RAM body to `$0200`, and jumps to it directly.
+
+Payload:
+
+- `src/diagclip_body_u2u3.bin`
+- extracted from `ROM_Images.zip`
+- source ROMs: `U-2 DIA` + `U-3 DIA`
+- copied body length: `$07AE` bytes
+
+Limitations of this first wrapper:
+
+- It does not initialise the CRTC because the 2K image is nearly full.
+- It is intended to be launched from the One ROM menu after the menu has already
+  set up the display.
+- Adapter-dependent tests are expected to fail unless the diagnostic keyboard,
+  user-port, and cassette loopback plugs are fitted.
+- It depends on low zero page being good enough for the copy loop; the menu's
+  early RAM checks should already have proved that.
